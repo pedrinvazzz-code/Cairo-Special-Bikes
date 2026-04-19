@@ -2,8 +2,8 @@ name: Cairo Bikes Sync
 
 on:
   schedule:
-    - cron: '0 8 * * *'   # todo dia às 8h (horário UTC = 5h Brasília)
-  workflow_dispatch:        # permite rodar manualmente pelo GitHub
+    - cron: '0 8 * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
@@ -11,15 +11,15 @@ jobs:
 
     steps:
       - name: Checkout repositório
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configurar Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Instalar dependências
-        run: pip install -r requirements.txt
+        run: pip install gspread google-auth requests pandas python-dotenv
 
       - name: Executar pipeline
         env:
@@ -27,4 +27,4 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
-        run: python pipeline/main.py
+        run: cd pipeline && python main.py
