@@ -45,6 +45,36 @@ Conecta à planilha do Google Sheets via API (`gspread`) e lê as 5 abas: Consig
 **Load** (`load.py`)
 Envia os dados tratados para o Supabase via REST API, usando `upsert` (insere ou atualiza sem duplicar) em lotes de 100 registros por requisição.
 
+## Dashboard
+
+Os dados carregados no Supabase alimentam um dashboard em Power BI com 4 páginas: visão geral, financeiro, estoque e segmentação de produtos.
+
+> *Nomes de clientes ocultados por privacidade. Capturas de tela ilustrativas de um dos dashboards produzidos no projeto.*
+
+**Visão Geral**
+![Visão Geral](docs/Visao_Geral.png)
+
+**Acompanhamento Financeiro**
+![Financeiro](docs/Financeiro.png)
+
+**Controle de Estoque**
+![Estoque](docs/Estoque.png)
+
+**Segmentação de Bikes e Componentes**
+![Segmentação](docs/Segmentacao_Produtos.png)
+
+## Estrutura dos dados
+
+Uma planilha de exemplo com a mesma arquitetura de dados está disponível em [`docs/dados_exemplo.xlsx`](docs/dados_exemplo.xlsx) — nomes de clientes e valores foram anonimizados/embaralhados, mantendo a estrutura de tabelas e relacionamentos.
+
+> A aba "Resumo Mensal" (indicadores financeiros consolidados da loja) não foi incluída, por conter informações sensíveis do negócio.
+
+As tabelas principais são:
+
+- **Proprietários** — cadastro de clientes consignantes
+- **Bicicletas** / **Componentes** — itens em consignação (marca, modelo, categoria, status)
+- **Consignações** — tabela central, ligando cliente + item + valor + status (vendido, em estoque, retirado)
+
 ## Automação
 
 O arquivo `.github/workflows/sync.yml` configura uma **GitHub Action** que executa o pipeline automaticamente a cada 2 horas (`cron: '0 */2 * * *'`), além de permitir disparo manual. As credenciais (chaves do Supabase, credenciais do Google e ID da planilha) ficam armazenadas como *Secrets* do GitHub, nunca expostas no código.
