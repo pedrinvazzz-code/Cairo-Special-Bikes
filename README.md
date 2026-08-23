@@ -75,6 +75,21 @@ As tabelas principais são:
 - **Bicicletas** / **Componentes** — itens em consignação (marca, modelo, categoria, status)
 - **Consignações** — tabela central, ligando cliente + item + valor + status (vendido, em estoque, retirado)
 
+## Banco de Dados e Consultas
+
+O modelo de dados relacional foi desenhado para suportar as análises e dashboards do projeto.
+
+![Diagrama do Banco de Dados](docs/diagrama_banco.png)
+
+Além do pipeline, o projeto conta com um arquivo de consultas SQL (`consultas.sql`) na raiz do repositório. Esse arquivo contém *queries* úteis para extração rápida de informações diretamente do banco de dados (Supabase/PostgreSQL), tais como:
+
+- Buscas específicas (por nome de cliente, bicicleta, componente ou ID)
+- Análises de clientes (clientes com mais consignações, maiores valores)
+- Consultas de estoque (itens disponíveis, tempo em estoque)
+- Métricas financeiras e de ticket médio (por categoria, marca, ano, receita mensal)
+
+Essas *queries* servem de base para validação dos dados e criação de métricas avançadas.
+
 ## Automação
 
 O arquivo `.github/workflows/sync.yml` configura uma **GitHub Action** que executa o pipeline automaticamente a cada 2 horas (`cron: '0 */2 * * *'`), além de permitir disparo manual. As credenciais (chaves do Supabase, credenciais do Google e ID da planilha) ficam armazenadas como *Secrets* do GitHub, nunca expostas no código.
