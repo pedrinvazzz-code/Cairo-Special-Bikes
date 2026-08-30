@@ -110,3 +110,11 @@ O arquivo `.github/workflows/sync.yml` configura uma **GitHub Action** que execu
 ---
 
 ðŸ“« Encontre meus outros projetos de dados em [github.com/pedrinvazzz-code](https://github.com/pedrinvazzz-code)
+
+## Atualizações Recentes (Polimento do Dashboard)
+
+Em alinhamento desde a estruturação dos dados, o dashboard passou por um polimento focado em uma **visão temporal mais precisa**, concentrando a análise financeira e de giro de estoque na fase atual do projeto (últimos meses de operação real). As principais melhorias incluíram:
+
+- **Fonte Única de Verdade:** Substituição da antiga rotina manual de 'Resumo Mensal' por agregações dinâmicas em SQL (via consultas.sql) conectadas diretamente à tabela de consignacoes. Isso garantiu 100% de integridade entre o faturamento e as entradas de estoque.
+- **Tratamento Inteligente de Datas:** Ajuste nas fórmulas DAX para lidar com lacunas de preenchimento e erros de digitação do usuário final. O cálculo de *Dias em Estoque* e *Tempo Médio de Giro* agora utiliza inteligência de fallback (mesclando a data_entrada com a created_at gerada pelo banco) para calcular o giro perfeitamente, isolando anomalias.
+- **Contexto de Filtro Aprimorado:** Refinamento dos indicadores financeiros (Receita, Ticket Médio e Metas) para contabilizarem estritamente as movimentações com status 'Vendido', além da padronização dos visuais para refletirem lacunas mensais de faturamento com precisão (evitando falsas linhas contínuas).
