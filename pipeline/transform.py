@@ -39,7 +39,7 @@ def fmt_date(v):
         d = pd.to_datetime(v, dayfirst=True)
         if pd.isna(d):
             return None
-        if d.year > 2026 or (d.year == 2026 and d.month > 4):
+        if d.year > 2026: # Vamos permitir o ano todo de 2026
             return None
         return d.strftime('%Y-%m-%d')
     except:
