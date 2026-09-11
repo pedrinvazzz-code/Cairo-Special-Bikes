@@ -138,25 +138,59 @@ FROM consignacoes AS c
 WHERE c.status ILIKE '%Vendido%';
 
 
---Total Receita Mensal 
+-- ==========================================
+-- RESUMO MENSAL COMPLETO (Ideal para Power BI)
+-- Substitui a antiga tabela manual de finanças
+-- ==========================================
+WITH Entradas AS (
+    SELECT 
+        DATE_TRUNC('month', data_entrada) AS mes,
+        COUNT(*) AS qtd_entradas,
+        SUM(valor) AS valor_entradas
+    FROM consignacoes
+    WHERE data_entrada IS NOT NULL
+    GROUP BY DATE_TRUNC('month', data_entrada)
+),
+Vendas AS (
+    SELECT 
+        DATE_TRUNC('month', data_saida) AS mes,
+        COUNT(*) AS qtd_vendas,
+        SUM(valor) AS receita_vendas
+    FROM consignacoes
+    WHERE status ILIKE '%vendido%'
+      AND data_saida IS NOT NULL
+    GROUP BY DATE_TRUNC('month', data_saida)
+)
+SELECT 
+    COALESCE(e.mes, v.mes) AS mes_referencia,
+    COALESCE(e.qtd_entradas, 0) AS qtd_entradas,
+    COALESCE(e.valor_entradas, 0) AS valor_entradas,
+    COALESCE(v.qtd_vendas, 0) AS qtd_vendas,
+    COALESCE(v.receita_vendas, 0) AS receita_vendas,
+    ROUND(COALESCE(v.receita_vendas, 0) / NULLIF(v.qtd_vendas, 0), 2) AS ticket_medio_vendas
+FROM Entradas e
+FULL OUTER JOIN Vendas v ON e.mes = v.mes
+ORDER BY mes_referencia;
+
+--Total Receita Mensal (Apenas Vendas)
 
 SELECT 
     DATE_TRUNC('month', data_saida) AS mes,
     SUM(valor) AS receita_bruta
 FROM consignacoes
-WHERE LOWER(status) = '%Vendido%'
+WHERE status ILIKE '%vendido%'
   AND data_saida IS NOT NULL
 GROUP BY mes
 ORDER BY mes;
 
 
---Media Receita Mensal
+--Media Receita Mensal (Apenas Vendas)
 
 SELECT 
     DATE_TRUNC('month', data_saida) AS mes,
     AVG(valor) AS media_receita
 FROM consignacoes
-WHERE LOWER(status) = '%Vendido%'
+WHERE status ILIKE '%vendido%'
   AND data_saida IS NOT NULL
 GROUP BY mes
 ORDER BY mes;
