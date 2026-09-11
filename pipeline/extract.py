@@ -42,7 +42,7 @@ def extract():
             if not valores:
                 dados[chave] = pd.DataFrame()
                 continue
-            cabecalho = valores[0]
+            cabecalho = [str(c).strip() for c in valores[0]]
             linhas = valores[1:]
             dados[chave] = pd.DataFrame(linhas, columns=cabecalho)
             print(f"  ✓ {aba_nome}: {len(dados[chave])} linhas")

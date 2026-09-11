@@ -79,6 +79,10 @@ def fmt_rm_valor(v):
 def transform(dados):
     resultado = {}
 
+    for k in dados:
+        if isinstance(dados[k], pd.DataFrame) and not dados[k].empty:
+            dados[k].columns = [str(c).strip() for c in dados[k].columns]
+
     # Proprietários
     df = dados['proprietarios'].copy()
     resultado['proprietarios'] = []
@@ -150,6 +154,14 @@ def transform(dados):
         if id_comp and id_comp not in ids_comps:
             skipped += 1
             continue
+        # Obter valor com fallback flexivel
+        val_raw = row.get('Valor (R$)')
+        if val_raw is None:
+            for col_name in row.index:
+                if 'valor' in str(col_name).lower():
+                    val_raw = row[col_name]
+                    break
+
         resultado['consignacoes'].append({
             'id_consignacao': id_,
             'id_bike':        id_bike,
@@ -158,7 +170,7 @@ def transform(dados):
             'tipo':           fmt_val(row.get('Tipo')),
             'item_produto':   fmt_val(row.get('Item / Produto')),
             'proprietario':   fmt_val(row.get('Proprietário')),
-            'valor':          fmt_valor(row.get('Valor (R$)')),
+            'valor':          fmt_valor(val_raw),
             'loja':           fmt_val(row.get('Loja')),
             'status':         fmt_status(row.get('Status')),
             'data_entrada':   fmt_date(row.get('Data Entrada')),
