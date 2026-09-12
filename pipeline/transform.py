@@ -8,6 +8,17 @@ STATUS_MAP = {
     'retirado':   'Retirado',
 }
 
+LOJA_MAP = {
+    'fisica':   'Física',
+    'física':   'Física',
+    'online':   'Online',
+    'on line':  'Online',
+    'on-line':  'Online',
+    'retirada': 'Retirada',
+}
+
+DIAS_IMPUTACAO_SAIDA = 15
+
 
 def safe_int(v):
     try:
@@ -34,12 +45,20 @@ def fmt_status(v):
     return STATUS_MAP.get(val.lower(), val)
 
 
-def fmt_date(v):
+def fmt_loja(v):
+    val = fmt_val(v)
+    if not val:
+        return None
+    return LOJA_MAP.get(val.lower(), val)
+
+
+def fmt_date(v, id_ref=None, campo=''):
     try:
         d = pd.to_datetime(v, dayfirst=True)
         if pd.isna(d):
             return None
         if d.year > 2030 or d.year < 2020:
+            print(f"  ⚠ Data fora da faixa em {campo} (ID {id_ref}): {v}")
             return None
         return d.strftime('%Y-%m-%d')
     except:
@@ -141,6 +160,7 @@ def transform(dados):
     ids_comps = {r['id_componente'] for r in resultado['componentes']}
     resultado['consignacoes'] = []
     skipped = 0
+    imputadas = 0
     for _, row in df.iterrows():
         id_ = safe_int(row.get('ID_Consignação'))
         if not id_:
@@ -162,6 +182,19 @@ def transform(dados):
                     val_raw = row[col_name]
                     break
 
+        status = fmt_status(row.get('Status'))
+        data_entrada = fmt_date(row.get('Data Entrada'), id_, 'Data Entrada')
+        data_saida = fmt_date(row.get('Data Saída'), id_, 'Data Saída')
+
+        # Vendido sem data de saída: imputa entrada + 15 dias (regra do relatório)
+        if status == 'Vendido' and data_saida is None and data_entrada:
+            data_saida = (pd.to_datetime(data_entrada) + pd.Timedelta(days=DIAS_IMPUTACAO_SAIDA)).strftime('%Y-%m-%d')
+            imputadas += 1
+
+        # Saída antes ou igual à entrada: só avisa, não altera
+        if data_entrada and data_saida and data_saida <= data_entrada:
+            print(f"  ⚠ Saída <= entrada (ID {id_}): {data_entrada} -> {data_saida}")
+
         resultado['consignacoes'].append({
             'id_consignacao': id_,
             'id_bike':        id_bike,
@@ -171,14 +204,16 @@ def transform(dados):
             'item_produto':   fmt_val(row.get('Item / Produto')),
             'proprietario':   fmt_val(row.get('Proprietário')),
             'valor':          fmt_valor(val_raw),
-            'loja':           fmt_val(row.get('Loja')),
-            'status':         fmt_status(row.get('Status')),
-            'data_entrada':   fmt_date(row.get('Data Entrada')),
-            'data_saida':     fmt_date(row.get('Data Saída')),
+            'loja':           fmt_loja(row.get('Loja')),
+            'status':         status,
+            'data_entrada':   data_entrada,
+            'data_saida':     data_saida,
             'observacoes':    fmt_val(row.get('Observações')),
         })
     if skipped:
         print(f"  ⚠ {skipped} consignações ignoradas por FK inválida")
+    if imputadas:
+        print(f"  ℹ {imputadas} vendidos sem Data Saída receberam entrada + {DIAS_IMPUTACAO_SAIDA} dias")
 
     # Resumo Mensal
     df = dados['resumo_mensal'].copy()
