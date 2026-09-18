@@ -217,10 +217,13 @@ def transform(dados):
 
     # Resumo Mensal
     df = dados['resumo_mensal'].copy()
-    if len(df.columns) >= 7:
-        df.columns = ['Mes','Bikes','Comps','Total_Entradas','Val_Bikes','Val_Comps','Total_Vendas'] + list(df.columns[7:])
-    df = df[df['Mes'].astype(str).str.match(r'\d{4}-\d{2}')]  
     resultado['resumo_mensal'] = []
+    if df.empty or len(df.columns) < 7:
+        print("  ⚠ Resumo Mensal vazio ou sem as 7 colunas esperadas, pulando")
+        df = df.iloc[0:0]
+    else:
+        df.columns = ['Mes','Bikes','Comps','Total_Entradas','Val_Bikes','Val_Comps','Total_Vendas'] + list(df.columns[7:])
+        df = df[df['Mes'].astype(str).str.match(r'\d{4}-\d{2}')]
     for _, row in df.iterrows():
         mes = str(row.get('Mes', '')).strip()[:7]
         if not mes or mes == 'nan':
