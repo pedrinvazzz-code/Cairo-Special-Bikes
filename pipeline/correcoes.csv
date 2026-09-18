@@ -1,0 +1,54 @@
+id,campo,valor_novo,motivo
+177,APAGAR,,duplicado do 176
+545,APAGAR,,duplicado do 528
+548,APAGAR,,duplicado do 522
+176,Data Entrada,25/03/2025,data de marco e a correta
+522,Valor (R$),20000,preco caiu
+522,Data Entrada,14/04/2026,data que estava no 548
+547,Data Saída,15/06/2026,dia real
+549,Data Saída,17/06/2026,dia real
+87,Data Saída,20/06/2026,dia real
+569,Data Saída,20/06/2026,dia real
+561,Data Saída,30/06/2026,dia real
+571,Data Saída,30/06/2026,dia real
+565,Data Entrada,22/06/2026,1a passagem da Procaliber
+565,Data Saída,29/06/2026,1a passagem da Procaliber
+557,Data Saída,25/07/2026,dia real
+541,Data Saída,28/07/2026,dia real
+576,Data Saída,30/07/2026,dia real
+546,Data Saída,07/08/2026,dia real
+512,Data Saída,03/04/2026,vendida em abril
+537,Data Saída,30/04/2026,vendida em abril
+301,Status,Vendido,bloco 7
+301,Data Saída,20/05/2026,bloco 7
+325,Status,Vendido,bloco 7
+325,Data Saída,30/03/2026,bloco 7
+524,Status,Vendido,bloco 7
+524,Data Saída,18/06/2026,bloco 7
+539,Status,Vendido,bloco 7
+539,Data Saída,18/05/2026,bloco 7
+531,Status,Em estoque,nao foi vendida
+531,Data Saída,,nao foi vendida
+521,Status,Retirado,dono deu baixa
+521,Data Entrada,31/03/2026,bloco 7
+551,Item / Produto,Bicicleta seminova road Scott Addict 20,e a Addict 20
+544,Valor (R$),79900,promocional
+540,Valor (R$),1990,promocional
+547,Valor (R$),35000,promocional
+549,Valor (R$),55900,promocional
+563,Valor (R$),17500,promocional
+541,Valor (R$),20900,promocional
+576,Valor (R$),17900,promocional
+578,Valor (R$),6490,promocional
+546,Valor (R$),7990,promocional
+590,Valor (R$),37000,promocional
+602,Valor (R$),5500,promocional
+529,Valor (R$),80,digitacao
+530,Valor (R$),180,digitacao
+527,Valor (R$),690,digitacao
+527,Data Entrada,09/12/2025,data corrigida
+510,Valor (R$),100,preco reduzido
+337,Valor (R$),800,preco reduzido
+523,Data Entrada,28/11/2025,entrada vazia
+555,Status,Retirado,dono ficou com as rodas
+570,Status,Retirado,dono ficou com as rodas
