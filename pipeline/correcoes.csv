@@ -52,3 +52,7 @@ id,campo,valor_novo,motivo
 523,Data Entrada,28/11/2025,entrada vazia
 555,Status,Retirado,dono ficou com as rodas
 570,Status,Retirado,dono ficou com as rodas
+532,Data Saída,15/05/2026,dia real confirmado
+552,Valor (R$),11900,promocional
+480,Status,Retirado,devolvida ao dono
+480,Data Saída,10/09/2026,devolvida ao dono
