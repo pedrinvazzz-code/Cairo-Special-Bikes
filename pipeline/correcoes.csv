@@ -56,3 +56,11 @@ id,campo,valor_novo,motivo
 552,Valor (R$),11900,promocional
 480,Status,Retirado,devolvida ao dono
 480,Data Saída,10/09/2026,devolvida ao dono
+518,Valor (R$),18500,preco fechado confirmado
+518,Data Saída,15/08/2026,mes confirmado pelo cliente dia estimado
+180,Data Entrada,15/10/2025,resposta do documento de reconciliacao
+180,Data Saída,30/01/2026,resposta do documento de reconciliacao
+280,Data Entrada,02/01/2026,resposta do documento de reconciliacao
+280,Data Saída,15/03/2026,resposta do documento de reconciliacao
+595,Status,Vendido,planilha da loja marca vendida em 22/08
+595,Data Saída,22/08/2026,planilha da loja marca vendida em 22/08
