@@ -12,6 +12,7 @@ import csv
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 import gspread
@@ -62,9 +63,12 @@ def main():
         col = cabecalho.index(c['campo']) + 1
         atual = valores[linha - 1][col - 1]
         novo = c['valor_novo']
+        if atual.strip() == novo.strip():
+            continue  # já está correto, pula sem imprimir
         print(f"  ID {id_:>4} | {c['campo']:<16} | '{atual}' -> '{novo}'")
         if APLICAR:
             aba.update_cell(linha, col, novo)
+            time.sleep(1.2)
 
     # apaga de baixo para cima para não deslocar as linhas ainda não apagadas
     for linha, id_ in sorted(apagar, reverse=True):

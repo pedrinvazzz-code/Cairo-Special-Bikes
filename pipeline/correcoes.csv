@@ -64,3 +64,31 @@ id,campo,valor_novo,motivo
 280,Data Saída,15/03/2026,resposta do documento de reconciliacao
 595,Status,Vendido,planilha da loja marca vendida em 22/08
 595,Data Saída,22/08/2026,planilha da loja marca vendida em 22/08
+533,Data Saída,06/08/2026,confirmado pelo cairo reuniao 20/09
+533,Valor (R$),6500,valor na planilha da loja confirmado pelo cairo
+550,Status,Vendido,confirmado pelo cairo reuniao 20/09
+550,Data Saída,22/08/2026,data na planilha da loja confirmada pelo cairo
+550,Valor (R$),11300,valor na planilha da loja confirmado pelo cairo
+577,Status,Vendido,confirmado pelo cairo reuniao 20/09
+577,Data Saída,07/08/2026,data na planilha da loja confirmada pelo cairo
+589,Status,Vendido,confirmado pelo cairo reuniao 20/09
+589,Data Saída,15/07/2026,julho confirmado pelo cairo dia 15 estimado
+584,Status,Vendido,vendeu 1 unidade confirmado pelo cairo reuniao 20/09
+584,Data Saída,15/09/2026,setembro confirmado pelo cairo dia 15 estimado
+87,Valor (R$),10000,vendida por r$10.000 confirmado pelo cairo
+87,Loja,Online,canal confirmado pelo cairo
+623,Loja,Online,canal confirmado pelo cairo
+624,Loja,Física,canal confirmado pelo cairo
+625,Loja,Online,canal confirmado pelo cairo
+576,ID_Cliente,20,proprietario cairo henrique confirmado pelo cairo
+576,Proprietário,Cairo Henrique,proprietario confirmado pelo cairo
+623,ID_Cliente,210,proprietario leonardo americo confirmado pelo cairo
+623,Proprietário,Leonardo Américo,proprietario confirmado pelo cairo
+617,ID_Cliente,224,proprietario tiago vieira confirmado pelo cairo
+617,Proprietário,Tiago Vieira,proprietario confirmado pelo cairo
+618,ID_Cliente,225,proprietario cristian clayder confirmado pelo cairo
+618,Proprietário,Cristian Clayder,proprietario confirmado pelo cairo
+619,ID_Cliente,226,proprietario leandro guerra confirmado pelo cairo
+619,Proprietário,Leandro Guerra,proprietario confirmado pelo cairo
+620,ID_Cliente,227,proprietario kaio cesar confirmado pelo cairo
+620,Proprietário,Kaio César,proprietario confirmado pelo cairo
