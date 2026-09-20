@@ -72,6 +72,7 @@ id,campo,valor_novo,motivo
 577,Status,Vendido,confirmado pelo cairo reuniao 20/09
 577,Data Saída,07/08/2026,data na planilha da loja confirmada pelo cairo
 589,Status,Vendido,confirmado pelo cairo reuniao 20/09
+589,Data Entrada,01/07/2026,entrada estimada inicio do mes para nao colidir com saida
 589,Data Saída,15/07/2026,julho confirmado pelo cairo dia 15 estimado
 584,Status,Vendido,vendeu 1 unidade confirmado pelo cairo reuniao 20/09
 584,Data Saída,15/09/2026,setembro confirmado pelo cairo dia 15 estimado
