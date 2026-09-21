@@ -12,19 +12,17 @@ O criterio de cada par esta no comentario. Cinco dos seis tem telefone
 identico, so mudando a formatacao ("34992944181" x "34 9294-4181"), o que
 sozinho ja fecha. Os outros dois vieram do cruzamento com o Excel da loja.
 """
-import json
 import os
 import sys
 import time
 from pathlib import Path
 
-import gspread
 from dotenv import load_dotenv
-from google.oauth2.service_account import Credentials
 
 load_dotenv(Path(__file__).parent.parent / '.env')
 
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+from sheets import get_client
+
 APLICAR = '--aplicar' in sys.argv
 
 # Remapear as consignacoes ja resolve a analise: contagem de clientes e ranking
@@ -48,9 +46,7 @@ PARES = [
 
 
 def main():
-    creds = Credentials.from_service_account_info(
-        json.loads(os.environ['GOOGLE_CREDENTIALS']), scopes=SCOPES)
-    planilha = gspread.authorize(creds).open_by_key(os.environ['SHEET_ID'])
+    planilha = get_client().open_by_key(os.environ['SHEET_ID'])
 
     cons = planilha.worksheet('Consignações')
     valores = cons.get_all_values()

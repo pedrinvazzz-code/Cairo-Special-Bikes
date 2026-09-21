@@ -9,28 +9,24 @@ Precisa das mesmas variáveis do pipeline (.env): GOOGLE_CREDENTIALS e SHEET_ID.
 A conta de serviço precisa ter permissão de EDITOR na planilha.
 """
 import csv
-import json
 import os
 import sys
 import time
 from pathlib import Path
 
-import gspread
 from dotenv import load_dotenv
-from google.oauth2.service_account import Credentials
 
 load_dotenv(Path(__file__).parent.parent / '.env')
 
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+from sheets import get_client
+
 ABA = 'Consignações'
 COL_ID = 'ID_Consignação'
 APLICAR = '--aplicar' in sys.argv
 
 
 def main():
-    creds = Credentials.from_service_account_info(
-        json.loads(os.environ['GOOGLE_CREDENTIALS']), scopes=SCOPES)
-    aba = gspread.authorize(creds).open_by_key(os.environ['SHEET_ID']).worksheet(ABA)
+    aba = get_client().open_by_key(os.environ['SHEET_ID']).worksheet(ABA)
 
     valores = aba.get_all_values()
     cabecalho = [c.strip() for c in valores[0]]

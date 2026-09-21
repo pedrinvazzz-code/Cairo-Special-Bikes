@@ -10,18 +10,16 @@ Cada linha aqui foi confirmada com o cliente e cruzada com a planilha de
 Excel da loja. Onde o cliente lembrava o mês mas não o dia, usamos o dia 15
 e registramos isso na coluna de observações.
 """
-import json
 import os
 import sys
 from pathlib import Path
 
-import gspread
 from dotenv import load_dotenv
-from google.oauth2.service_account import Credentials
 
 load_dotenv(Path(__file__).parent.parent / '.env')
 
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+from sheets import get_client
+
 APLICAR = '--aplicar' in sys.argv
 
 # ID_Bike, Nome/Descrição, Marca, Modelo, Ano, Categoria, Tamanho, Material, Status
@@ -61,9 +59,7 @@ CONSIGNACOES_NOVAS = [
 
 
 def main():
-    creds = Credentials.from_service_account_info(
-        json.loads(os.environ['GOOGLE_CREDENTIALS']), scopes=SCOPES)
-    planilha = gspread.authorize(creds).open_by_key(os.environ['SHEET_ID'])
+    planilha = get_client().open_by_key(os.environ['SHEET_ID'])
 
     for aba_nome, col_id, novas in [('Bicicletas', 'ID_Bike', BICICLETAS_NOVAS),
                                     ('Consignações', 'ID_Consignação', CONSIGNACOES_NOVAS)]:

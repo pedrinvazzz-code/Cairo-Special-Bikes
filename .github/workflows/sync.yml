@@ -21,6 +21,9 @@ jobs:
       - name: Instalar dependências
         run: pip install -r requirements.txt
 
+      - name: Rodar testes dos parsers
+        run: cd pipeline && python test_transform.py
+
       - name: Executar pipeline
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

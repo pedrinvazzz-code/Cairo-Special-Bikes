@@ -218,12 +218,21 @@ def transform(dados):
     # Resumo Mensal
     df = dados['resumo_mensal'].copy()
     resultado['resumo_mensal'] = []
-    if df.empty or len(df.columns) < 7:
-        print("  ⚠ Resumo Mensal vazio ou sem as 7 colunas esperadas, pulando")
+    if df.empty:
+        print("  ⚠ Resumo Mensal vazio, pulando")
         df = df.iloc[0:0]
     else:
-        df.columns = ['Mes','Bikes','Comps','Total_Entradas','Val_Bikes','Val_Comps','Total_Vendas'] + list(df.columns[7:])
-        df = df[df['Mes'].astype(str).str.match(r'\d{4}-\d{2}')]
+        # Ancora pelo nome real da coluna "Mês" em vez de assumir que ela é
+        # sempre a coluna 0 — protege contra reordenação de colunas na aba.
+        cols = list(df.columns)
+        idx_mes = next((i for i, c in enumerate(cols) if str(c).strip().lower() in ('mês', 'mes')), None)
+        if idx_mes is None or idx_mes + 6 >= len(cols):
+            print("  ⚠ Resumo Mensal: coluna 'Mês' não encontrada ou faltam colunas depois dela, pulando")
+            df = df.iloc[0:0]
+        else:
+            df = df[cols[idx_mes:idx_mes + 7]].copy()
+            df.columns = ['Mes', 'Bikes', 'Comps', 'Total_Entradas', 'Val_Bikes', 'Val_Comps', 'Total_Vendas']
+            df = df[df['Mes'].astype(str).str.match(r'\d{4}-\d{2}')]
     for _, row in df.iterrows():
         mes = str(row.get('Mes', '')).strip()[:7]
         if not mes or mes == 'nan':
