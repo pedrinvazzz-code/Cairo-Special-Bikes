@@ -93,3 +93,6 @@ id,campo,valor_novo,motivo
 619,Proprietário,Leandro Guerra,proprietario confirmado pelo cairo
 620,ID_Cliente,227,proprietario kaio cesar confirmado pelo cairo
 620,Proprietário,Kaio César,proprietario confirmado pelo cairo
+574,Data Saída,,em estoque nos tres meses no excel da loja sem marca de saida
+584,Observações,vendida 1 unidade das 12; as 11 restantes o cliente retirou,texto antigo contradizia o status vendido
+572,Valor (R$),16900,site e excel da loja dizem 16900 contra 26900 na planilha

@@ -84,15 +84,15 @@ def fmt_valor(v):
 
 
 def fmt_rm_valor(v):
+    # A aba Resumo Mensal mistura os dois formatos: "R$144.100,00" (pt_BR) nas
+    # linhas antigas e "R$56,190.00" (en_US) a partir de fev/2026. Tratar só a
+    # vírgula como separador transformava 144.100,00 em 144.1 — mil vezes menor.
+    # fmt_valor já distingue os dois formatos, então reaproveitamos.
     if v is None or (isinstance(v, float) and pd.isna(v)):
         return None
-    s = str(v).strip().replace('R$', '').replace(',', '').replace(' ', '')
-    if s in ('A confirmar', 'confirmar', 'nan', 'None', ''):
+    if str(v).strip().lower() in ('a confirmar', 'confirmar', 'nan', 'none', ''):
         return None
-    try:
-        return float(s)
-    except:
-        return None
+    return fmt_valor(v)
 
 
 def transform(dados):

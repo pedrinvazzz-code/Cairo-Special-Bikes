@@ -1,5 +1,6 @@
 """
-Cadastra no Google Sheets as vendas que existiam só no controle da loja.
+Cadastra no Google Sheets os itens que existiam só no controle da loja —
+vendas que nunca foram lançadas e, no caso da Corratec, estoque nunca cadastrado.
 
 Uso:
     python cadastrar_vendas.py            # só mostra o que faria (dry run)
@@ -27,6 +28,10 @@ APLICAR = '--aplicar' in sys.argv
 BICICLETAS_NOVAS = [
     ['342', 'Bicicleta Cervelo P series', 'Cervelo', 'P series', '',
      'Triathlon', '', 'Carbono', 'Vendido', ''],
+    # Espelha a ID_Bike 207 (a outra CCT EVO): Corratec / Speed / Carbono.
+    # Ano e tamanho ficam em branco porque nao temos.
+    ['343', 'Bicicleta Corratec CCT EVO Sram Force AXS 12v', 'Corratec',
+     'CCT EVO Sram Force AXS 12v', '', 'Speed', '', 'Carbono', 'Em estoque', ''],
 ]
 
 # ID_Consignação, ID_Bike, ID_Componente, ID_Cliente, Tipo, Item / Produto,
@@ -41,6 +46,17 @@ CONSIGNACOES_NOVAS = [
     ['625', '223', '', '20', 'Bicicleta', 'Bicicleta para triathlon #felt IA FRD 2.0 Ultimate',
      'Cairo Henrique', '60000', '', 'Vendido', '01/08/2026', '25/08/2026',
      'cadastro retroativo: 2a passagem da bike; datas e valor conferidos na planilha da loja'],
+    # Em estoque, nao venda. Nunca foi cadastrada: as tres Corratec da planilha
+    # estao vendidas e nenhuma e esta (a 26 e Sram RED AXS, de 2025, do Cairo).
+    # Duas fontes independentes dizem que esta na loja: o Excel lista em agosto e
+    # setembro sem pintar de vermelho, e o site publica como disponivel.
+    # Valor = R$35.900, o preco CHEIO. O anuncio do site diz "De: R$35.900,00
+    # Por: R$31.900,00" -- os R$31.900 sao promocionais. Em item de estoque a
+    # planilha guarda o preco de tabela (conferido em 4 bikes com De/Por).
+    # Dono identificado pelo telefone 34 9860-4188 = ID 74 (Kaio carbono).
+    ['626', '343', '', '74', 'Bicicleta', 'Bicicleta Corratec CCT EVO Sram Force AXS 12v',
+     'Kaio carbono', '35900', 'Física', 'Em estoque', '15/06/2026', '',
+     'cadastro retroativo: em estoque no controle da loja e publicado no site, sem registro na planilha'],
 ]
 
 
