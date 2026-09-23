@@ -57,7 +57,7 @@ Antes de entregar qualquer análise, a base passou por auditoria. Dois achados m
 
 ### 67% da receita histórica caía em virada de mês
 
-O teste é barato: distribuir a receita pelo **dia do mês** da data de saída. Venda real não se concentra no dia 1, 30 ou 31 — mas aqui, R$ 3,78 milhões de R$ 5,65 milhões caíam exatamente nesses dias.
+O teste é barato: distribuir a receita pelo **dia do mês** da data de saída. Venda real não se concentra no dia 1, 30 ou 31 — mas aqui, **dois terços de toda a receita histórica** caíam exatamente nesses dias.
 
 Não era fraude nem erro de cálculo: eram **datas-marcador**, preenchidas em lote quando as doze planilhas antigas foram consolidadas. O corte é nítido — até março de 2026, entre 63% e 100% da receita de cada mês cai em borda; de abril em diante, entre 0% e 29%, e cada caso remanescente tem confirmação documental.
 
@@ -67,7 +67,7 @@ Não era fraude nem erro de cálculo: eram **datas-marcador**, preenchidas em lo
 
 A comissão da loja segue faixas: 12% abaixo de R$ 10 mil, 10% entre R$ 10 e 30 mil, 8% acima. Essa regra estava escrita no código do pipeline, em três medidas do Power BI e no texto do relatório.
 
-Três concordavam. Uma não: as medidas que repartem a comissão por faixa **não tinham filtro de período**, então somavam o histórico inteiro enquanto todos os outros indicadores da página respeitavam a janela. O total estava certo — R$ 78.619 — e só a repartição estava errada, o que é exatamente o tipo de defeito que passa despercebido.
+Três concordavam. Uma não: as medidas que repartem a comissão por faixa **não tinham filtro de período**, então somavam o histórico inteiro enquanto todos os outros indicadores da página respeitavam a janela. O total estava certo e só a repartição estava errada, o que é exatamente o tipo de defeito que passa despercebido.
 
 Foi esse bug que motivou a camada de views: **a regra passou a existir em um lugar só**, e Power BI e assistente leem dali.
 

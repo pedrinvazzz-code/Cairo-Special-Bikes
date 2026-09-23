@@ -32,14 +32,32 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / '.env')
 
-SEMENTE = 20260922            # fixa: rodar duas vezes dá o mesmo resultado
+# Os três parâmetros que controlam a anonimização NÃO ficam no arquivo, e isso
+# é deliberado: publicados, eles a tornam reversível. Quem tivesse a planilha
+# fictícia e a escala usada recuperaria a ordem de grandeza do negócio real
+# dividindo de volta; com a semente, recuperaria item a item.
+#
+# Ficam no .env, que é ignorado pelo git, e o script RECUSA rodar sem eles.
+# Um padrão neutro seria pior que nenhum: geraria uma planilha com os valores
+# reais dentro, em silêncio, com nome de arquivo dizendo "demo".
+#
+#   DEMO_SEMENTE   qualquer inteiro; fixa o embaralhamento
+#   DEMO_ESCALA    fator que reduz o porte (ex.: 0.5 corta pela metade)
+#   DEMO_VARIACAO  ruido por item, que desfaz a proporção entre eles
 
-# Os valores são reduzidos e embaralhados. A primeira versão só variava ±18%, e
-# R$ 855 mil contra os R$ 840 mil reais não engana ninguém que abra o relatório
-# ao lado. ESCALA derruba o porte do negócio; VARIACAO desfaz a proporção entre
-# os itens, para não bastar multiplicar de volta.
-ESCALA = 0.34
-VARIACAO = 0.30
+
+def _exigir(nome, conversao):
+    bruto = os.getenv(nome)
+    if bruto is None or bruto.strip() == '':
+        raise SystemExit(
+            'Falta %s no .env. Sem esse parâmetro a planilha sairia com os '
+            'valores reais dentro. Veja .env.example.' % nome)
+    return conversao(bruto)
+
+
+SEMENTE  = _exigir('DEMO_SEMENTE', int)
+ESCALA   = _exigir('DEMO_ESCALA', float)
+VARIACAO = _exigir('DEMO_VARIACAO', float)
 SAIDA = Path(__file__).parent / 'dados_demo.xlsx'
 
 # Tabelas e views que o modelo do Power BI consome.

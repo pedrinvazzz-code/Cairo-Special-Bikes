@@ -47,7 +47,7 @@
  * só serve se o modelo NUNCA completar um número que a ferramenta não devolveu,
  * e modelo menor erra mais justamente aí: responde com confiança e inventa.
  * Se for usar NVIDIA, teste com pergunta cuja resposta você já sabe de cor —
- * "quanto vendi em agosto" tem que dar R$ 292.540 em 17 vendas.
+ * pergunte algo cuja resposta você já sabe de cor e confira o número.
  */
 var PROVEDOR = 'nvidia';
 
@@ -700,7 +700,7 @@ function testarConfiguracao() {
   // versao perguntava "quanto vendi em agosto" e exigia o numero de vendas
   // junto, e reprovou uma resposta certa.
   function numero_(n) {
-    // aceita 292540, 292.540 e 292 540
+    // aceita 1234567, 1.234.567 e 1 234 567
     var s = String(Math.round(n));
     var comPonto = s.replace(/\B(?=(\d{3})+(?!\d))/g, '[.\\s]?');
     return new RegExp('\\b' + comPonto + '\\b');
