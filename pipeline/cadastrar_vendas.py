@@ -26,10 +26,13 @@ APLICAR = '--aplicar' in sys.argv
 BICICLETAS_NOVAS = [
     ['342', 'Bicicleta Cervelo P series', 'Cervelo', 'P series', '',
      'Triathlon', '', 'Carbono', 'Vendido', ''],
-    # Espelha a ID_Bike 207 (a outra CCT EVO): Corratec / Speed / Carbono.
-    # Ano e tamanho ficam em branco porque nao temos.
-    ['343', 'Bicicleta Corratec CCT EVO Sram Force AXS 12v', 'Corratec',
-     'CCT EVO Sram Force AXS 12v', '', 'Speed', '', 'Carbono', 'Em estoque', ''],
+    # A Corratec CCT EVO Sram Force AXS chegou a ser preparada aqui, porque o Excel
+    # e o site a listavam em estoque. Em 21/09 o cliente confirmou que ela foi
+    # RETIRADA. A linha saiu de proposito: cadastrar criaria estoque fantasma de
+    # R$35.900. E o exemplo de por que duas fontes concordando nao bastam quando as
+    # duas compartilham o mesmo defeito (nenhuma e limpa quando o item sai).
+    ['343', 'Bicicleta Specialized Roubaix Carbono SRAM Apex', 'Specialized',
+     'Roubaix SL4 Sram Apex 2x10v', '2013', 'Speed', '56', 'Carbono', 'Em estoque', ''],
 ]
 
 # ID_Consignação, ID_Bike, ID_Componente, ID_Cliente, Tipo, Item / Produto,
@@ -44,17 +47,22 @@ CONSIGNACOES_NOVAS = [
     ['625', '223', '', '20', 'Bicicleta', 'Bicicleta para triathlon #felt IA FRD 2.0 Ultimate',
      'Cairo Henrique', '60000', '', 'Vendido', '01/08/2026', '25/08/2026',
      'cadastro retroativo: 2a passagem da bike; datas e valor conferidos na planilha da loja'],
-    # Em estoque, nao venda. Nunca foi cadastrada: as tres Corratec da planilha
-    # estao vendidas e nenhuma e esta (a 26 e Sram RED AXS, de 2025, do Cairo).
-    # Duas fontes independentes dizem que esta na loja: o Excel lista em agosto e
-    # setembro sem pintar de vermelho, e o site publica como disponivel.
-    # Valor = R$35.900, o preco CHEIO. O anuncio do site diz "De: R$35.900,00
-    # Por: R$31.900,00" -- os R$31.900 sao promocionais. Em item de estoque a
-    # planilha guarda o preco de tabela (conferido em 4 bikes com De/Por).
-    # Dono identificado pelo telefone 34 9860-4188 = ID 74 (Kaio carbono).
-    ['626', '343', '', '74', 'Bicicleta', 'Bicicleta Corratec CCT EVO Sram Force AXS 12v',
-     'Kaio carbono', '35900', 'Física', 'Em estoque', '15/06/2026', '',
-     'cadastro retroativo: em estoque no controle da loja e publicado no site, sem registro na planilha'],
+    # Em estoque, nao venda. Presenca fisica CONFIRMADA pelo cliente em 21/09.
+    # Nunca foi cadastrada: as seis Roubaix da planilha estao todas vendidas, e a
+    # mais proxima em valor (#194, R$7.500) faz parte do trio #192/#193/#194, a
+    # mesma bike fisica contada tres vezes.
+    # Valor = R$7.500, o preco CHEIO: o anuncio do site diz "De: R$7.500,00
+    # Por: R$6.500,00", e o Excel registra 7500 em todas as abas de jan a set.
+    # Em item de estoque a planilha guarda o preco de tabela, nao o promocional.
+    # Dono: ID 105. O Excel traz um telefone que o cadastro desse ID ainda nao
+    # tem -- vale acrescentar.
+    # Data de entrada fica em branco: nenhuma fonte registra. Aparece sem vermelho
+    # desde a aba de janeiro, entao entrou antes de 2026. Chutar 01/01 criaria
+    # justamente a data-marcador que este projeto passou a auditoria inteira
+    # tentando eliminar.
+    ['626', '343', '', '105', 'Bicicleta', 'Bicicleta Specialized Roubaix Carbono SRAM Apex',
+     'Mauricio', '7500', 'Física', 'Em estoque', '', '',
+     'cadastro retroativo: em estoque no controle da loja e publicado no site; presenca confirmada pelo cliente em 21/09; data de entrada nao registrada em nenhuma fonte'],
 ]
 
 

@@ -9,7 +9,7 @@ Para cada par, as consignacoes do ID duplicado passam para o ID canonico
 (ID_Cliente e Proprietario) e a linha do duplicado sai da aba Proprietarios.
 
 O criterio de cada par esta no comentario. Cinco dos seis tem telefone
-identico, so mudando a formatacao ("34992944181" x "34 9294-4181"), o que
+identico, so mudando a formatacao (um cadastro com "34999999999" e o outro com "34 9999-9999"), o que
 sozinho ja fecha. Os outros dois vieram do cruzamento com o Excel da loja.
 """
 import os
@@ -33,14 +33,14 @@ REMOVER_LINHAS = '--remover-duplicados' in sys.argv
 
 # (canonico, duplicado, nome_final, criterio)
 PARES = [
-    (74, 215, 'Kaio carbono',
-     'o Excel chama a mesma pessoa de Caio, Kaio e Caio carbono; o telefone '
-     '34 9860-4188 da Corratec e o do ID 74'),
-    (210, 213, 'Leonardo Américo', 'mesmo telefone 34988481163'),
-    (1, 201, 'Alan', 'mesmo telefone 34991983846'),
-    (25, 202, 'Danilo', 'mesmo telefone 34988695859'),
-    (190, 199, 'Eduardo Macedo', 'mesmo telefone 34992944181'),
-    (156, 221, 'Emanuel (genro do Robson)',
+    (74, 215, 'ID 74',
+     'o Excel grafa o mesmo nome de tres formas diferentes; o telefone do '
+     'item que estava em duvida e o mesmo do ID 74'),
+    (210, 213, 'ID 210', 'mesmo telefone nos dois cadastros'),
+    (1, 201, 'ID 1', 'mesmo telefone nos dois cadastros'),
+    (25, 202, 'ID 25', 'mesmo telefone nos dois cadastros'),
+    (190, 199, 'ID 190', 'mesmo telefone nos dois cadastros'),
+    (156, 221, 'ID 156',
      'nome identico incluindo o apelido entre parenteses; so o 156 tem telefone'),
 ]
 

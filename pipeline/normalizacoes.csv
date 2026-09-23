@@ -1,0 +1,64 @@
+data,aba,celula,coluna,valor_antigo,valor_novo,motivo
+2026-09-22,Consignações,J119,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J125,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J130,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J131,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J132,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J243,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J369,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J503,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J504,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J513,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J514,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J516,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,J540,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,I514,Loja,On line,Online,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,I516,Loja,On line,Online,normalizacao de dominio antes da lista suspensa
+2026-09-22,Consignações,I560,Loja,On line,Online,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,I271,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H279,Material,alumínio,Alumínio,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H282,Material,carbono,Carbono,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H317,Material,carbono,Carbono,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H318,Material,carbono,Carbono,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H319,Material,carbono,Carbono,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H321,Material,carbono,Carbono,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H322,Material,carbono,Carbono,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H323,Material,carbono,Carbono,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H324,Material,carbono,Carbono,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,H325,Material,carbono,Carbono,normalizacao de dominio antes da lista suspensa
+2026-09-22,Componentes,E239,Status,vendido,Vendido,normalizacao de dominio antes da lista suspensa
+2026-09-22,Bicicletas,A1,cabecalho,#N/A,ID_Bike,formula quebrada no cabecalho
+2026-09-22,Bicicletas,I7,Status,Em estoque,Vendido,status alinhado a consignacao 87 (fonte de verdade)
+2026-09-22,Bicicletas,I32,Status,Em estoque,Retirado,status alinhado a consignacao 246 (fonte de verdade)
+2026-09-22,Bicicletas,I65,Status,Vendido,Retirado,status alinhado a consignacao 18 (fonte de verdade)
+2026-09-22,Bicicletas,I110,Status,Vendido,Retirado,status alinhado a consignacao 171 (fonte de verdade)
+2026-09-22,Bicicletas,I125,Status,Vendido,Retirado,status alinhado a consignacao 89 (fonte de verdade)
+2026-09-22,Bicicletas,I126,Status,Em estoque,Vendido,status alinhado a consignacao 194 (fonte de verdade)
+2026-09-22,Bicicletas,I135,Status,Vendido,Retirado,status alinhado a consignacao 8 (fonte de verdade)
+2026-09-22,Bicicletas,I147,Status,Vendido,Retirado,status alinhado a consignacao 269 (fonte de verdade)
+2026-09-22,Bicicletas,I151,Status,Vendido,Retirado,status alinhado a consignacao 223 (fonte de verdade)
+2026-09-22,Bicicletas,I154,Status,Vendido,Retirado,status alinhado a consignacao 270 (fonte de verdade)
+2026-09-22,Bicicletas,I195,Status,Vendido,Retirado,status alinhado a consignacao 115 (fonte de verdade)
+2026-09-22,Bicicletas,I201,Status,Vendido,Retirado,status alinhado a consignacao 58 (fonte de verdade)
+2026-09-22,Bicicletas,I202,Status,Vendido,Retirado,status alinhado a consignacao 151 (fonte de verdade)
+2026-09-22,Bicicletas,I203,Status,Vendido,Retirado,status alinhado a consignacao 211 (fonte de verdade)
+2026-09-22,Bicicletas,I206,Status,Vendido,Retirado,status alinhado a consignacao 127 (fonte de verdade)
+2026-09-22,Bicicletas,I211,Status,Vendido,Retirado,status alinhado a consignacao 123 (fonte de verdade)
+2026-09-22,Bicicletas,I227,Status,Em estoque,Retirado,status alinhado a consignacao 81 (fonte de verdade)
+2026-09-22,Bicicletas,I233,Status,Em estoque,Retirado,status alinhado a consignacao 80 (fonte de verdade)
+2026-09-22,Bicicletas,I238,Status,Em estoque,Vendido,status alinhado a consignacao 159 (fonte de verdade)
+2026-09-22,Bicicletas,I247,Status,Vendido,Retirado,status alinhado a consignacao 179 (fonte de verdade)
+2026-09-22,Bicicletas,I266,Status,Em estoque,Retirado,status alinhado a consignacao 521 (fonte de verdade)
+2026-09-22,Bicicletas,I269,Status,Em estoque,Vendido,status alinhado a consignacao 524 (fonte de verdade)
+2026-09-22,Bicicletas,I270,Status,Vendido,Em estoque,status alinhado a consignacao 531 (fonte de verdade)
+2026-09-22,Bicicletas,I282,Status,Em estoque,Vendido,status alinhado a consignacao 544 (fonte de verdade)
+2026-09-22,Bicicletas,I286,Status,Em estoque,Vendido,status alinhado a consignacao 549 (fonte de verdade)
+2026-09-22,Bicicletas,I288,Status,Em estoque,Vendido,status alinhado a consignacao 551 (fonte de verdade)
+2026-09-22,Bicicletas,I289,Status,Em estoque,Vendido,status alinhado a consignacao 552 (fonte de verdade)
+2026-09-22,Bicicletas,I295,Status,Retirado,Vendido,status alinhado a consignacao 601 (fonte de verdade)
+2026-09-22,Bicicletas,I305,Status,Em estoque,Vendido,status alinhado a consignacao 577 (fonte de verdade)
+2026-09-22,Componentes,E3,Status,Em estoque,Retirado,status alinhado a consignacao 480 (fonte de verdade)
+2026-09-22,Componentes,E22,Status,Em estoque,Vendido,status alinhado a consignacao 301 (fonte de verdade)
+2026-09-22,Componentes,E237,Status,Vendido,Retirado,status alinhado a consignacao 543 (fonte de verdade)
+2026-09-22,Componentes,E238,Status,Em estoque,Retirado,status alinhado a consignacao 555 (fonte de verdade)
+2026-09-22,Componentes,E242,Status,Vendido,Retirado,status alinhado a consignacao 570 (fonte de verdade)
