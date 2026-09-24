@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<meta name="theme-color" content="#111111">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Tokens tirados do cairospecialbikes.com.br: o vermelho do botão primário,
+     o preto do cabeçalho, a fonte Assistant do tema e o raio de borda ZERO.
+     O raio zero é o que mais muda a cara — arredondar cantos é o que dava
+     aparência de template genérico. */
+  :root {
+    --preto:    #111111;
+    --tinta:    #121212;
+    --vermelho: #D22630;
+    --vermelho-escuro: #A81D26;
+    --claro:    #F5F5F5;
+    --papel:    #FFFFFF;
+    --cinza:    #F2F2F2;
+    --linha:    rgba(18,18,18,.22);
+    --linha2:   rgba(18,18,18,.55);
+    --fraco:    rgba(18,18,18,.62);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--papel); color: var(--tinta);
+    font-family: Assistant, system-ui, -apple-system, sans-serif;
+    font-size: 15px; line-height: 1.5;
+  }
+  .dentro { max-width: 480px; margin: 0 auto; }
+
+  /* ------------------------------------------------------- cabeçalho */
+  .topo { background: var(--preto); }
+  .topo .dentro { padding: 18px 20px 0 20px; }
+  .topo img { display: block; width: 148px; height: auto; margin: 0 auto 4px auto; }
+
+  .abas { display: flex; }
+  .abas button {
+    flex: 1; padding: 13px 6px 12px 6px; font: inherit; font-size: 13px;
+    font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: rgba(245,245,245,.55); background: transparent;
+    border: none; border-bottom: 3px solid transparent; cursor: pointer;
+  }
+  .abas button[aria-selected="true"] { color: var(--claro); border-bottom-color: var(--vermelho); }
+
+  main { padding: 0 20px 108px 20px; }
+
+  /* ---------------------------------------------------------- seções */
+  .secao { margin-top: 26px; }
+  .titulo { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .num {
+    width: 22px; height: 22px; flex-shrink: 0;
+    background: var(--vermelho); color: #FFF;
+    font-size: 11px; font-weight: 800; line-height: 22px; text-align: center;
+  }
+  .titulo h2 {
+    margin: 0; font-size: 12.5px; font-weight: 800;
+    letter-spacing: .1em; text-transform: uppercase;
+  }
+  .cartao { border-top: 2px solid var(--tinta); padding-top: 2px; }
+
+  /* ---------------------------------------------------------- campos */
+  label {
+    display: block; margin: 15px 0 5px 0;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--fraco);
+  }
+  input, select, textarea {
+    width: 100%; height: 46px; padding: 0 12px;
+    font: inherit; font-size: 15px; color: var(--tinta);
+    background: var(--papel); border: 1px solid var(--linha2);
+    border-radius: 0; appearance: none;
+  }
+  select {
+    padding-right: 34px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23121212' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 13px center;
+  }
+  textarea { height: 64px; padding: 11px 12px; resize: vertical; line-height: 1.45; }
+  input::placeholder, textarea::placeholder { color: rgba(18,18,18,.35); }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--tinta); box-shadow: inset 0 0 0 1px var(--tinta);
+  }
+  .moeda { position: relative; }
+  .moeda span {
+    position: absolute; left: 12px; top: 0; height: 46px; line-height: 46px;
+    font-size: 15px; font-weight: 600; color: var(--fraco); pointer-events: none;
+  }
+  .moeda input { padding-left: 36px; }
+
+  .dupla { display: flex; gap: 10px; }
+  .dupla > div { flex: 1; min-width: 0; }
+  .dica { font-size: 12.5px; color: var(--fraco); margin-top: 7px; line-height: 1.4; }
+
+  /* ------------------------------------------------ escolha em blocos */
+  .tiles { display: flex; gap: 10px; }
+  .tiles button {
+    flex: 1; padding: 16px 10px 14px 10px; font: inherit; cursor: pointer;
+    background: var(--papel); border: 1px solid var(--linha2); border-radius: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    color: var(--fraco); font-size: 12px; font-weight: 700;
+    letter-spacing: .05em; text-transform: uppercase;
+  }
+  .tiles button[aria-pressed="true"] {
+    border-color: var(--vermelho); color: var(--vermelho);
+    box-shadow: inset 0 0 0 1px var(--vermelho);
+  }
+  .tiles svg { display: block; }
+
+  /* ----------------------------------------------------------- ações */
+  .barra {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    background: var(--papel); border-top: 1px solid var(--linha);
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom)) 20px;
+  }
+  .enviar {
+    width: 100%; height: 50px; font: inherit; font-size: 14px; font-weight: 800;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: #FFF; background: var(--vermelho);
+    border: none; border-radius: 0; cursor: pointer;
+  }
+  .enviar:active { background: var(--vermelho-escuro); }
+  .enviar:disabled { opacity: .45; cursor: default; }
+
+  .aviso { margin-top: 20px; padding: 13px 14px; font-size: 14px; display: none; }
+  .aviso.erro {
+    display: block; background: #FCEEEF;
+    border-left: 4px solid var(--vermelho); color: #7E1720;
+  }
+
+  /* --------------------------------------------------------- sucesso */
+  .sucesso { text-align: center; padding: 52px 8px 20px 8px; }
+  .selo {
+    width: 60px; height: 60px; margin: 0 auto 18px auto;
+    background: var(--tinta); color: #FFF;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sucesso h2 {
+    margin: 0 0 8px 0; font-size: 14px; font-weight: 800;
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+  .sucesso p { margin: 0 auto; max-width: 320px; color: var(--fraco); font-size: 14.5px; }
+  .denovo {
+    margin-top: 28px; width: 100%; height: 48px; font: inherit;
+    font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--tinta); background: var(--papel);
+    border: 1px solid var(--tinta); border-radius: 0; cursor: pointer;
+  }
+
+  /* ------------------------------------------------------- perguntar */
+  .conversa { padding-top: 22px; }
+  .vazio { padding: 26px 0 8px 0; }
+  .vazio p { margin: 0 0 18px 0; color: var(--fraco); font-size: 14.5px; }
+  .sugestoes { display: flex; flex-direction: column; gap: 8px; }
+  .sugestoes button {
+    text-align: left; padding: 13px 14px; font: inherit; font-size: 14.5px;
+    color: var(--tinta); background: var(--papel);
+    border: 1px solid var(--linha); border-radius: 0; cursor: pointer;
+  }
+  .sugestoes button:active { border-color: var(--vermelho); color: var(--vermelho); }
+
+  .fala { margin-bottom: 18px; }
+  .fala .quem {
+    font-size: 10.5px; font-weight: 800; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--fraco); margin-bottom: 5px;
+  }
+  .fala.eu .quem { color: var(--vermelho); }
+  .fala .texto { font-size: 15px; line-height: 1.55; white-space: pre-wrap; }
+  .fala.eu .texto {
+    background: var(--cinza); padding: 11px 13px; border-left: 3px solid var(--vermelho);
+  }
+  .pensando { color: var(--fraco); font-size: 14.5px; }
+
+  .linhaChat { display: flex; gap: 8px; }
+  .linhaChat input { flex: 1; min-width: 0; }
+  .linhaChat button {
+    width: 50px; height: 46px; flex-shrink: 0; border: none; border-radius: 0;
+    background: var(--vermelho); color: #FFF; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .linhaChat button:disabled { opacity: .45; cursor: default; }
+
+  .oculto { display: none !important; }
+  .carregando { padding: 64px 0; text-align: center; color: var(--fraco); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div class="dentro">
+    <img src="https://cairospecialbikes.com.br/cdn/shop/files/1_Sem_fundo.png?v=1766172200&width=600"
+         alt="Cairo Special Bikes">
+    <div class="abas" role="tablist">
+      <button id="abaEntrada" role="tab" aria-selected="true" onclick="trocar('entrada')">Entrada</button>
+      <button id="abaSaida"   role="tab" aria-selected="false" onclick="trocar('saida')">Fechar</button>
+      <button id="abaChat"    role="tab" aria-selected="false" onclick="trocar('chat')">Perguntar</button>
+    </div>
+  </div>
+</div>
+
+<main>
+<div class="dentro">
+
+  <div id="carregando" class="carregando">carregando a planilha…</div>
+
+  <!-- ============================================================ entrada -->
+  <form id="formEntrada" class="oculto" onsubmit="enviarEntrada(event)">
+
+    <div class="secao">
+      <div class="titulo"><span class="num">1</span><h2>O que entrou</h2></div>
+      <div class="tiles">
+        <button type="button" id="tileBike" aria-pressed="true" onclick="escolherTipo('Bicicleta')">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle>
+            <path d="M5.5 17.5 9.5 7h5l4 10.5"></path><path d="M9.5 7h-2"></path><path d="M12 17.5 15 9"></path>
+          </svg>
+          Bicicleta
+        </button>
+        <button type="button" id="tileComp" aria-pressed="false" onclick="escolherTipo('Componente/Acessório')">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.2"></circle>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.2 2.2M16.9 16.9l2.2 2.2M19.1 4.9l-2.2 2.2M7.1 16.9l-2.2 2.2"></path>
+          </svg>
+          Componente
+        </button>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="titulo"><span class="num">2</span><h2>O item</h2></div>
+      <div class="cartao">
+        <label for="descricao">Descrição</label>
+        <input id="descricao" required placeholder="ex: Bicicleta road Specialized Tarmac SL7">
+
+        <label for="marca">Marca</label>
+        <input id="marca" list="listaMarcas" placeholder="ex: Specialized">
+
+        <div id="camposBike">
+          <label for="modelo">Modelo</label>
+          <input id="modelo" placeholder="ex: Tarmac SL7 Sram Rival">
+          <div class="dupla">
+            <div><label for="categoriaBike">Categoria</label><select id="categoriaBike"></select></div>
+            <div><label for="ano">Ano</label><input id="ano" type="number" inputmode="numeric" min="1980" max="2100" placeholder="2023"></div>
+          </div>
+          <div class="dupla">
+            <div><label for="tamanho">Tamanho</label><select id="tamanho"></select></div>
+            <div><label for="material">Material</label><select id="material"></select></div>
+          </div>
+        </div>
+
+        <div id="camposComp" class="oculto">
+          <label for="categoriaComp">Categoria</label>
+          <select id="categoriaComp"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="titulo"><span class="num">3</span><h2>Quem consignou</h2></div>
+      <div class="cartao">
+        <label for="dono">Proprietário</label>
+        <select id="dono" onchange="alternarDono()"></select>
+        <div id="camposDonoNovo" class="oculto">
+          <label for="donoNovo">Nome completo</label>
+          <input id="donoNovo" placeholder="ex: Maria Silva">
+          <div class="dupla">
+            <div><label for="donoContato">Contato</label><input id="donoContato" inputmode="tel" placeholder="34999999999"></div>
+            <div><label for="donoCidade">Cidade</label><input id="donoCidade" placeholder="Uberlândia"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="titulo"><span class="num">4</span><h2>O acordo</h2></div>
+      <div class="cartao">
+        <div class="dupla">
+          <div>
+            <label for="valor">Valor combinado</label>
+            <div class="moeda"><span>R$</span>
+              <input id="valor" type="number" inputmode="decimal" step="0.01" min="0" required placeholder="24900">
+            </div>
+          </div>
+          <div><label for="dataEntrada">Data de entrada</label><input id="dataEntrada" type="date" required></div>
+        </div>
+        <label for="obsEntrada">Observações</label>
+        <textarea id="obsEntrada" placeholder="opcional"></textarea>
+      </div>
+    </div>
+
+    <div id="avisoEntrada" class="aviso"></div>
+  </form>
+
+  <!-- ============================================================== saída -->
+  <form id="formSaida" class="oculto" onsubmit="enviarSaida(event)">
+
+    <div class="secao">
+      <div class="titulo"><span class="num">1</span><h2>Qual item</h2></div>
+      <div class="cartao">
+        <label for="item">Em estoque</label>
+        <select id="item" onchange="preencherValor()"></select>
+        <div class="dica" id="dicaItem"></div>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="titulo"><span class="num">2</span><h2>O que aconteceu</h2></div>
+      <div class="tiles">
+        <button type="button" id="tileVendeu" aria-pressed="true" onclick="escolherStatus('Vendido')">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 6h18l-1.6 9.2a2 2 0 0 1-2 1.8H6.6a2 2 0 0 1-2-1.8Z"></path>
+            <circle cx="9" cy="20.5" r="1.3"></circle><circle cx="17" cy="20.5" r="1.3"></circle>
+          </svg>
+          Vendeu
+        </button>
+        <button type="button" id="tileRetirou" aria-pressed="false" onclick="escolherStatus('Retirado')">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"></path>
+            <path d="M10 16 14 12 10 8"></path><path d="M14 12H3"></path>
+          </svg>
+          O dono retirou
+        </button>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="titulo"><span class="num">3</span><h2>Detalhes</h2></div>
+      <div class="cartao">
+        <div id="campoCanal">
+          <label for="canal">Canal da venda</label>
+          <select id="canal">
+            <option value="Física">Loja física</option>
+            <option value="Online">Online</option>
+          </select>
+        </div>
+        <div class="dupla">
+          <div>
+            <label for="valorSaida">Valor</label>
+            <div class="moeda"><span>R$</span>
+              <input id="valorSaida" type="number" inputmode="decimal" step="0.01" min="0">
+            </div>
+          </div>
+          <div><label for="dataSaida">Data</label><input id="dataSaida" type="date" required></div>
+        </div>
+        <div class="dica">Se saiu pelo valor combinado, deixa como está.</div>
+        <label for="obsSaida">Observações</label>
+        <textarea id="obsSaida" placeholder="opcional"></textarea>
+      </div>
+    </div>
+
+    <div id="avisoSaida" class="aviso"></div>
+  </form>
+
+  <!-- ========================================================== perguntar -->
+  <div id="telaChat" class="oculto">
+    <div id="conversa" class="conversa">
+      <div class="vazio">
+        <p>Pergunte em português. A resposta vem do banco, na hora.</p>
+        <div class="sugestoes">
+          <button type="button" onclick="sugerir(this)">Quanto vendi em agosto?</button>
+          <button type="button" onclick="sugerir(this)">O que está parado há mais tempo?</button>
+          <button type="button" onclick="sugerir(this)">Qual o giro das bikes?</button>
+          <button type="button" onclick="sugerir(this)">Quanto vale o estoque hoje?</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ sucesso -->
+  <div id="telaOk" class="sucesso oculto">
+    <div class="selo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 12.5 9.5 18 20 6.5"></path>
+      </svg>
+    </div>
+    <h2>Registrado</h2>
+    <p id="textoOk"></p>
+    <button type="button" class="denovo" onclick="voltar()">Registrar outro</button>
+  </div>
+
+  <datalist id="listaMarcas"></datalist>
+</div>
+</main>
+
+<div class="barra oculto" id="barra">
+  <div class="dentro">
+    <button type="button" class="enviar" id="botaoAcao" onclick="submeter()">Registrar entrada</button>
+  </div>
+</div>
+
+<div class="barra oculto" id="barraChat">
+  <div class="dentro linhaChat">
+    <input id="pergunta" placeholder="Pergunte alguma coisa…" autocomplete="off"
+           onkeydown="if(event.key==='Enter')enviarPergunta()">
+    <button type="button" id="botaoChat" onclick="enviarPergunta()" aria-label="Enviar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12h14M13 6l6 6-6 6"></path>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+var OPCOES = null, ABA = 'entrada', TIPO = 'Bicicleta', STATUS = 'Vendido';
+
+function el(id) { return document.getElementById(id); }
+function opcoes(sel, vals, vazio) {
+  sel.innerHTML = '';
+  if (vazio) sel.appendChild(new Option(vazio, ''));
+  vals.forEach(function (v) { sel.appendChild(new Option(v, v)); });
+}
+function brl(n) { return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0 }); }
+
+/** Preenche as listas com o que veio do servidor. */
+function aplicarOpcoes(d) {
+  OPCOES = d;
+  opcoes(el('categoriaBike'), d.categoriasBike, '—');
+  opcoes(el('tamanho'), d.tamanhos, '—');
+  opcoes(el('material'), d.materiais, '—');
+  opcoes(el('categoriaComp'), d.categoriasComp, '—');
+
+  el('listaMarcas').innerHTML = '';
+  (d.marcas || []).forEach(function (m) { el('listaMarcas').appendChild(new Option(m, m)); });
+
+  var dono = el('dono');
+  var donoEscolhido = dono.value;
+  dono.innerHTML = '';
+  dono.appendChild(new Option('— escolha —', ''));
+  dono.appendChild(new Option('+ cadastrar novo proprietário', 'NOVO'));
+  d.donos.forEach(function (p) { dono.appendChild(new Option(p.nome, p.id)); });
+  if (donoEscolhido) dono.value = donoEscolhido;
+
+  var item = el('item');
+  item.innerHTML = '';
+  item.appendChild(new Option('— escolha —', ''));
+  d.estoque.forEach(function (i) {
+    var o = new Option(i.item, i.id);
+    o.dataset.valor = i.valor; o.dataset.dono = i.dono;
+    item.appendChild(o);
+  });
+
+  el('dataEntrada').value = d.hoje;
+  el('dataSaida').value = d.hoje;
+}
+
+/**
+ * Relê a planilha depois de gravar.
+ *
+ * Sem isto, o item que acabou de ser cadastrado não aparece na aba de fechar
+ * até alguém recarregar a página — e ninguém adivinha que precisa recarregar.
+ */
+function recarregarOpcoes() {
+  google.script.run.withSuccessHandler(aplicarOpcoes).carregarOpcoes();
+}
+
+google.script.run.withSuccessHandler(function (d) {
+  aplicarOpcoes(d);
+  el('carregando').classList.add('oculto');
+  el('formEntrada').classList.remove('oculto');
+  el('barra').classList.remove('oculto');
+}).withFailureHandler(function (e) {
+  el('carregando').textContent = 'Erro ao carregar: ' + e.message;
+}).carregarOpcoes();
+
+
+function trocar(qual) {
+  ABA = qual;
+  var chat = qual === 'chat';
+  el('telaOk').classList.add('oculto');
+  el('formEntrada').classList.toggle('oculto', qual !== 'entrada');
+  el('formSaida').classList.toggle('oculto', qual !== 'saida');
+  el('telaChat').classList.toggle('oculto', !chat);
+  el('barra').classList.toggle('oculto', chat);
+  el('barraChat').classList.toggle('oculto', !chat);
+  el('abaEntrada').setAttribute('aria-selected', qual === 'entrada');
+  el('abaSaida').setAttribute('aria-selected', qual === 'saida');
+  el('abaChat').setAttribute('aria-selected', chat);
+  if (!chat) el('botaoAcao').textContent = qual === 'entrada' ? 'Registrar entrada' : 'Registrar';
+  window.scrollTo(0, 0);
+}
+
+// ---------------------------------------------------------------- chat
+var HISTORICO = [];
+
+function sugerir(b) {
+  el('pergunta').value = b.textContent;
+  enviarPergunta();
+}
+
+function bolha(quem, texto, classe) {
+  var d = document.createElement('div');
+  d.className = 'fala ' + (classe || '');
+  var q = document.createElement('div'); q.className = 'quem'; q.textContent = quem;
+  var t = document.createElement('div'); t.className = 'texto'; t.textContent = texto;
+  d.appendChild(q); d.appendChild(t);
+  el('conversa').appendChild(d);
+  d.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  return t;
+}
+
+function enviarPergunta() {
+  var txt = el('pergunta').value.trim();
+  if (!txt) return;
+
+  var vazio = el('conversa').querySelector('.vazio');
+  if (vazio) vazio.remove();
+
+  el('pergunta').value = '';
+  el('botaoChat').disabled = true;
+  bolha('Você', txt, 'eu');
+  var alvo = bolha('Assistente', 'consultando…');
+  alvo.classList.add('pensando');
+
+  google.script.run
+    .withSuccessHandler(function (r) {
+      alvo.classList.remove('pensando');
+      alvo.textContent = r.resposta;
+      HISTORICO = r.historico;
+      el('botaoChat').disabled = false;
+      alvo.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    })
+    .withFailureHandler(function (e) {
+      alvo.classList.remove('pensando');
+      // Erro de servidor do provedor do modelo nao e culpa de quem perguntou,
+      // e mostrar "500 Internal Server Error" para o Cairo nao ajuda em nada.
+      alvo.textContent = /respondeu 5\d\d|429/.test(e.message)
+        ? 'O assistente está fora do ar no momento. Tente de novo em alguns segundos.'
+        : 'Erro: ' + e.message;
+      el('botaoChat').disabled = false;
+    })
+    .perguntar(txt, HISTORICO);
+}
+
+function escolherTipo(t) {
+  TIPO = t;
+  var bike = t === 'Bicicleta';
+  el('tileBike').setAttribute('aria-pressed', bike);
+  el('tileComp').setAttribute('aria-pressed', !bike);
+  el('camposBike').classList.toggle('oculto', !bike);
+  el('camposComp').classList.toggle('oculto', bike);
+}
+
+function escolherStatus(s) {
+  STATUS = s;
+  var vendeu = s === 'Vendido';
+  el('tileVendeu').setAttribute('aria-pressed', vendeu);
+  el('tileRetirou').setAttribute('aria-pressed', !vendeu);
+  el('campoCanal').classList.toggle('oculto', !vendeu);
+}
+
+function alternarDono() {
+  el('camposDonoNovo').classList.toggle('oculto', el('dono').value !== 'NOVO');
+}
+
+function preencherValor() {
+  var o = el('item').selectedOptions[0];
+  if (o && o.value) {
+    el('valorSaida').value = o.dataset.valor;
+    el('dicaItem').textContent = 'De ' + o.dataset.dono + ' · combinado R$ ' + brl(o.dataset.valor);
+  } else {
+    el('dicaItem').textContent = ''; el('valorSaida').value = '';
+  }
+}
+
+function erro(id, txt) {
+  var a = el(id); a.className = 'aviso erro'; a.textContent = txt;
+  a.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function ocupado(sim) {
+  el('botaoAcao').disabled = sim;
+  if (sim) el('botaoAcao').textContent = 'gravando…';
+  else el('botaoAcao').textContent = ABA === 'entrada' ? 'Registrar entrada' : 'Registrar';
+}
+
+function sucesso(msg) {
+  el('formEntrada').classList.add('oculto');
+  el('formSaida').classList.add('oculto');
+  el('barra').classList.add('oculto');
+  el('textoOk').textContent = msg;
+  el('telaOk').classList.remove('oculto');
+  window.scrollTo(0, 0);
+}
+
+function voltar() {
+  if (ABA === 'entrada') {
+    el('formEntrada').reset();
+    el('dataEntrada').value = OPCOES.hoje;
+    escolherTipo('Bicicleta'); alternarDono();
+    el('avisoEntrada').className = 'aviso';
+  } else {
+    el('formSaida').reset();
+    el('dataSaida').value = OPCOES.hoje;
+    escolherStatus('Vendido'); preencherValor();
+    el('avisoSaida').className = 'aviso';
+  }
+  trocar(ABA);
+}
+
+function submeter() {
+  var f = ABA === 'entrada' ? el('formEntrada') : el('formSaida');
+  if (!f.reportValidity()) return;
+  f.dispatchEvent(new Event('submit', { cancelable: true }));
+}
+
+function enviarEntrada(ev) {
+  ev.preventDefault();
+  var dono = el('dono').value;
+  if (!dono) return erro('avisoEntrada', 'Escolha o proprietário.');
+  if (dono === 'NOVO' && !el('donoNovo').value.trim())
+    return erro('avisoEntrada', 'Digite o nome do novo proprietário.');
+
+  var bike = TIPO === 'Bicicleta';
+  ocupado(true);
+  google.script.run
+    .withSuccessHandler(function (msg) { ocupado(false); sucesso(msg); recarregarOpcoes(); })
+    .withFailureHandler(function (e) { ocupado(false); erro('avisoEntrada', e.message); })
+    .registrarEntrada({
+      tipo: TIPO,
+      descricao: el('descricao').value.trim(),
+      marca: el('marca').value.trim(),
+      modelo: bike ? el('modelo').value.trim() : '',
+      ano: bike ? el('ano').value : '',
+      categoria: bike ? el('categoriaBike').value : el('categoriaComp').value,
+      tamanho: bike ? el('tamanho').value : '',
+      material: bike ? el('material').value : '',
+      donoId: dono === 'NOVO' ? '' : dono,
+      donoNovo: dono === 'NOVO' ? el('donoNovo').value.trim() : '',
+      donoContato: el('donoContato').value.trim(),
+      donoCidade: el('donoCidade').value.trim(),
+      valor: el('valor').value,
+      dataEntrada: el('dataEntrada').value,
+      observacoes: el('obsEntrada').value.trim()
+    });
+}
+
+function enviarSaida(ev) {
+  ev.preventDefault();
+  if (!el('item').value) return erro('avisoSaida', 'Escolha o item.');
+
+  ocupado(true);
+  google.script.run
+    .withSuccessHandler(function (msg) {
+      ocupado(false);
+      sucesso(msg);
+      recarregarOpcoes();   // o item sai da lista de estoque na hora
+    })
+    .withFailureHandler(function (e) { ocupado(false); erro('avisoSaida', e.message); })
+    .registrarSaida({
+      idCons: el('item').value,
+      status: STATUS,
+      canal: el('canal').value,
+      valor: el('valorSaida').value,
+      dataSaida: el('dataSaida').value,
+      observacoes: el('obsSaida').value.trim()
+    });
+}
+</script>
+</body>
+</html>

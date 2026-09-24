@@ -1,0 +1,20 @@
+.env
+__pycache__/
+*.pyc
+.DS_Store
+
+# backups das abas antes de cada escrita: dado de cliente, fica so local
+backups/
+
+# Power BI: nada que carregue dado pode ser versionado.
+#
+# O .pbix em modo Import embute a base inteira -- inclusive a tabela de
+# proprietarios, com nome e telefone de cliente. Ele chegou a ficar publico
+# neste repositorio em 21/09 e foi removido do historico em 22/09.
+#
+# O formato certo e o .pbip, que grava o modelo e o relatorio como texto.
+# Mas ele tambem deixa um cache do modelo em .pbi/cache.abf -- que e o mesmo
+# dado outra vez. Por isso a pasta .pbi/ inteira fica de fora.
+*.pbix
+*.abf
+**/.pbi/
