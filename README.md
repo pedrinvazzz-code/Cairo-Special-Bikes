@@ -284,6 +284,3 @@ Rodada de reconciliação entre a planilha e os controles paralelos da loja, seg
 - Carga no Supabase via REST API em lotes
 - Agendamento automático no GitHub Actions a cada 2 horas
 
----
-
-📫 Encontre meus outros projetos de dados em [github.com/pedrinvazzz-code](https://github.com/pedrinvazzz-code)
