@@ -68,13 +68,16 @@
     background: var(--campo); border-radius: 999px;
   }
   .abas button {
-    flex: 1; height: 40px; padding: 0 8px; font: inherit; font-size: 13.5px; font-weight: 600;
+    flex: 1; min-width: 0; height: 40px; padding: 0 4px; font: inherit; font-size: 13px; font-weight: 600;
     color: var(--grafite); background: transparent; border: none; border-radius: 999px; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 7px;
     transition: background .2s, color .2s, box-shadow .2s;
   }
   .abas button[aria-selected="true"] { color: var(--tinta); background: var(--papel); box-shadow: var(--sombra); }
   .abas button[aria-selected="true"] svg { color: var(--vermelho); }
+  .abas button svg { flex-shrink: 0; }
+  /* em tela estreita, só a aba ativa mostra o ícone: com quatro abas não cabe tudo */
+  @media (max-width: 400px) { .abas button:not([aria-selected="true"]) svg { display: none; } }
 
   main { position: relative; z-index: 1; padding: 0 20px 120px 20px; }
 
@@ -271,6 +274,175 @@
   }
   .linhaChat button:disabled { opacity: .45; cursor: default; }
 
+  /* -------------------------------------------- seletor com busca */
+  /* O <select> continua na página, escondido: o resto do código lê o valor
+     dele como antes. O botão abaixo só abre a busca e mostra o escolhido. */
+  .escondido { position: absolute !important; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .campoBusca {
+    width: 100%; min-height: 50px; padding: 8px 40px 8px 14px; font: inherit; font-size: 16px; text-align: left;
+    color: var(--tinta); background: var(--campo); border: 1px solid transparent; border-radius: var(--r-campo);
+    cursor: pointer; position: relative; display: flex; flex-direction: column; justify-content: center;
+  }
+  .campoBusca.vazio { color: #A9A9AE; }
+  .campoBusca small { font-size: 12.5px; color: var(--fraco); }
+  .campoBusca::after {
+    content: ''; position: absolute; right: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px; opacity: .55;
+    background: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231C1C1E' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='m20 20-4.2-4.2'/%3E%3C/svg%3E") no-repeat center;
+  }
+
+  /* ------------------------------------------------ folha (bottom sheet) */
+  .veu {
+    position: fixed; inset: 0; z-index: 40; background: rgba(28,28,30,.32);
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .veu.aberto { opacity: 1; pointer-events: auto; }
+  .folha {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; max-width: 520px; margin: 0 auto;
+    max-height: 90vh; display: flex; flex-direction: column;
+    background: var(--papel); border-radius: 22px 22px 0 0; box-shadow: 0 -10px 40px rgba(28,28,30,.18);
+    transform: translateY(105%); transition: transform .28s cubic-bezier(.2,.8,.2,1);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .folha.aberta { transform: none; }
+  .folha.alta { height: 90vh; }
+  .folha .alca { width: 38px; height: 5px; border-radius: 3px; background: var(--campo2); margin: 8px auto 4px auto; flex-shrink: 0; }
+  .folha .cab { display: flex; align-items: center; gap: 10px; padding: 8px 20px 12px 20px; flex-shrink: 0; }
+  .folha .cab h3 { flex: 1; margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+  .fecharFolha {
+    width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--campo); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; color: var(--grafite); flex-shrink: 0;
+  }
+  .folha .corpo { overflow-y: auto; padding: 0 20px 20px 20px; -webkit-overflow-scrolling: touch; }
+  .buscaFolha { position: relative; margin: 0 20px 8px 20px; flex-shrink: 0; }
+  .buscaFolha input { padding-left: 42px; }
+  .buscaFolha svg { position: absolute; left: 14px; top: 15px; color: var(--fraco); }
+
+  .opcao {
+    width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 4px; font: inherit; text-align: left;
+    background: none; border: none; border-bottom: 1px solid var(--linha); cursor: pointer; color: var(--tinta);
+  }
+  .opcao:last-child { border-bottom: none; }
+  .opcao .txt { flex: 1; min-width: 0; }
+  .opcao .txt b { display: block; font-weight: 500; font-size: 15.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .opcao .txt small { display: block; color: var(--fraco); font-size: 13px; }
+  .opcao mark { background: #FFE3D6; color: inherit; border-radius: 3px; padding: 0 1px; }
+  .opcao.marcada .txt b { font-weight: 700; }
+  .opcao .ok { width: 18px; color: var(--vermelho); visibility: hidden; flex-shrink: 0; }
+  .opcao.marcada .ok { visibility: visible; }
+  .opcao.criar { color: var(--vermelho); font-weight: 600; }
+  .opcao .ini {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; background: var(--campo);
+    display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--grafite);
+  }
+  .opcao.criar .ini { background: var(--rosado); color: var(--vermelho); }
+  .semResultado { padding: 28px 4px; text-align: center; color: var(--fraco); font-size: 14.5px; }
+
+  /* ------------------------------------------------------------ estoque */
+  .heroi {
+    margin-top: 22px; padding: 18px 18px 16px 18px; border-radius: var(--r-card);
+    background: var(--carbono); color: #FFF; box-shadow: 0 10px 28px rgba(28,28,30,.18);
+    position: relative; overflow: hidden;
+  }
+  .heroi::after {
+    content: ''; position: absolute; right: -40px; bottom: -70px; width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,160,118,.45), rgba(255,160,118,0) 70%);
+  }
+  .heroi span { font-size: 13px; color: rgba(255,255,255,.65); }
+  .heroi b { display: block; font-size: 32px; font-weight: 700; letter-spacing: -.03em; margin: 2px 0 2px 0; font-variant-numeric: tabular-nums; }
+  .heroi small { font-size: 13px; color: rgba(255,255,255,.7); }
+  .stats { display: flex; gap: 10px; margin-top: 10px; }
+  .stat {
+    flex: 1; padding: 14px 14px 12px 14px; border-radius: var(--r-card);
+    background: var(--papel); border: 1px solid var(--linha); box-shadow: var(--sombra);
+  }
+  .stat span { font-size: 12.5px; color: var(--grafite); display: flex; align-items: center; gap: 5px; }
+  .stat b { display: block; font-size: 24px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stat small { font-size: 12.5px; color: var(--fraco); }
+  .stat.alerta b { color: var(--vermelho); }
+
+  .idades { margin-top: 10px; padding: 14px 14px 8px 14px; border-radius: var(--r-card); border: 1px solid var(--linha); background: var(--papel); box-shadow: var(--sombra); }
+  .idades h4 { margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--grafite); }
+  .faixa {
+    width: 100%; display: grid; grid-template-columns: 74px 1fr 30px; align-items: center; gap: 10px;
+    padding: 7px 4px; font: inherit; background: none; border: none; border-radius: 8px; cursor: pointer; color: var(--tinta);
+  }
+  .faixa:active, .faixa.ativa { background: var(--campo); }
+  .faixa .nome { font-size: 13px; color: var(--grafite); text-align: left; white-space: nowrap; }
+  .faixa .trilho { display: block; height: 10px; background: var(--campo); border-radius: 5px; overflow: hidden; }
+  .faixa .preench { display: block; height: 100%; min-width: 0; background: #9A9AA0; border-radius: 0 5px 5px 0; transition: width .4s ease-out; }
+  .faixa.critica .preench { background: var(--vermelho); }
+  .faixa .qtd { font-size: 13.5px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .chips { display: flex; gap: 6px; margin: 22px -20px 0 -20px; padding: 0 20px; overflow-x: auto; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chips button {
+    flex-shrink: 0; height: 36px; padding: 0 14px; font: inherit; font-size: 13.5px; font-weight: 500;
+    color: var(--grafite); background: var(--campo); border: none; border-radius: 999px; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .chips button[aria-pressed="true"] { color: #FFF; background: var(--carbono); }
+  .chips .n { font-size: 12px; opacity: .7; font-variant-numeric: tabular-nums; }
+  .buscaLista { position: relative; margin-top: 10px; }
+  .buscaLista input { padding-left: 42px; }
+  .buscaLista svg { position: absolute; left: 14px; top: 15px; color: var(--fraco); }
+
+  .lista { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .reg {
+    width: 100%; padding: 13px 14px; font: inherit; text-align: left; cursor: pointer; color: var(--tinta);
+    background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; box-shadow: var(--sombra);
+    display: flex; flex-direction: column; gap: 3px; transition: transform .1s;
+  }
+  .reg:active { transform: scale(.99); }
+  .reg .l1 { display: flex; align-items: baseline; gap: 10px; }
+  .reg .l1 b { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .reg .l1 span { font-weight: 600; font-size: 14.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .reg .l2 { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fraco); }
+  .reg .l2 .dono { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .selo-dias {
+    flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px;
+    border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--campo); color: var(--grafite);
+    font-variant-numeric: tabular-nums;
+  }
+  .selo-dias.atencao { background: #FFF1DB; color: #8A5300; }
+  .selo-dias.critico { background: #FDECEC; color: #A3121C; }
+  .selo-dias.vendido { background: #E7F4EC; color: var(--ok); }
+  .maisItens { margin: 6px auto 0 auto; display: block; height: 40px; padding: 0 18px; font: inherit; font-size: 14px; font-weight: 600;
+               color: var(--tinta); background: var(--campo); border: none; border-radius: 999px; cursor: pointer; }
+
+  /* detalhes de um registro, dentro da folha */
+  .detalhe { margin: 0 0 16px 0; }
+  .detalhe .linha { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--linha); font-size: 14.5px; }
+  .detalhe .linha:last-child { border-bottom: none; }
+  .detalhe .linha span { color: var(--grafite); }
+  .detalhe .linha b { font-weight: 500; text-align: right; }
+  .acoes { display: flex; flex-direction: column; gap: 8px; }
+  .acoes button {
+    height: 50px; font: inherit; font-size: 15px; font-weight: 600; border: none; border-radius: 999px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .acoes .primario { background: var(--carbono); color: #FFF; }
+  .acoes .secundario { background: var(--campo); color: var(--tinta); }
+
+  /* ------------------------------------------------------------ corrigir */
+  .segmento { display: flex; gap: 4px; padding: 4px; background: var(--campo); border-radius: 999px; }
+  .segmento button {
+    flex: 1; height: 40px; font: inherit; font-size: 14px; font-weight: 600; color: var(--grafite);
+    background: transparent; border: none; border-radius: 999px; cursor: pointer;
+  }
+  .segmento button[aria-pressed="true"] { background: var(--papel); color: var(--tinta); box-shadow: var(--sombra); }
+  .mudou label::after { content: ' · alterado'; color: var(--vermelho); font-weight: 600; }
+  .resumoMudancas { margin-top: 0; font-size: 13.5px; color: var(--grafite); text-align: center; min-height: 20px; }
+  .rodapeFolha { padding: 12px 20px calc(14px + env(safe-area-inset-bottom)) 20px; border-top: 1px solid var(--linha); flex-shrink: 0; background: var(--papel); }
+
+  /* ---------------------------------------------------------------- toast */
+  .toast {
+    position: fixed; left: 50%; bottom: 96px; z-index: 60; transform: translate(-50%, 20px);
+    padding: 12px 18px; border-radius: 999px; background: var(--carbono); color: #FFF; font-size: 14.5px; font-weight: 500;
+    box-shadow: 0 10px 30px rgba(28,28,30,.25); opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .25s; display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  }
+  .toast.visivel { opacity: 1; transform: translate(-50%, 0); }
+
   .oculto { display: none !important; }
   .carregando {
     padding: 80px 0; color: var(--fraco); font-size: 14px;
@@ -294,6 +466,7 @@
     <div class="abas" role="tablist">
       <button id="abaEntrada" role="tab" aria-selected="true" onclick="trocar('entrada')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17"></rect><path d="M12 8v8M8 12h8"></path></svg>Entrada</button>
       <button id="abaSaida"   role="tab" aria-selected="false" onclick="trocar('saida')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12.2V4a1 1 0 0 1 1-1h8.2a1 1 0 0 1 .7.3l7.8 7.8a1 1 0 0 1 0 1.4l-8.2 8.2a1 1 0 0 1-1.4 0l-7.8-7.8a1 1 0 0 1-.3-.7Z"></path><circle cx="7.5" cy="7.5" r="1.5"></circle></svg>Fechar</button>
+      <button id="abaEstoque" role="tab" aria-selected="false" onclick="trocar('estoque')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5-9 4.5Z"></path><path d="m3 12 9 4.5 9-4.5"></path><path d="m3 16.5 9 4.5 9-4.5"></path></svg>Estoque</button>
       <button id="abaChat"    role="tab" aria-selected="false" onclick="trocar('chat')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h16v11.5H10l-4.5 4v-4H4Z"></path><path d="M8 9h8M8 12.2h5"></path></svg>Perguntar</button>
     </div>
   </div>
@@ -444,6 +617,41 @@
     <div id="avisoSaida" class="aviso"></div>
   </form>
 
+  <!-- ============================================================ estoque -->
+  <div id="telaEstoque" class="oculto">
+    <div class="heroi">
+      <span>Valor em estoque</span>
+      <b id="stValor">—</b>
+      <small id="stItens"></small>
+    </div>
+    <div class="stats">
+      <div class="stat alerta">
+        <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"></path><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path></svg>Parados 90+ dias</span>
+        <b id="stParados">—</b><small id="stParadosValor"></small>
+      </div>
+      <div class="stat">
+        <span>Tempo mediano</span>
+        <b id="stMediana">—</b><small id="stMedianaObs"></small>
+      </div>
+    </div>
+    <div class="idades" role="group" aria-label="Itens por tempo em loja">
+      <h4>Tempo em loja</h4>
+      <div id="faixas"></div>
+    </div>
+
+    <div class="chips" id="chips" role="group" aria-label="Filtrar">
+      <button type="button" data-filtro="estoque" aria-pressed="true" onclick="filtrar('estoque')">Em estoque <span class="n" id="nEstoque"></span></button>
+      <button type="button" data-filtro="parados" aria-pressed="false" onclick="filtrar('parados')">Parados 90+ <span class="n" id="nParados"></span></button>
+      <button type="button" data-filtro="Vendido" aria-pressed="false" onclick="filtrar('Vendido')">Vendidos <span class="n" id="nVendidos"></span></button>
+      <button type="button" data-filtro="Retirado" aria-pressed="false" onclick="filtrar('Retirado')">Retirados <span class="n" id="nRetirados"></span></button>
+    </div>
+    <div class="buscaLista">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m20 20-4.2-4.2"></path></svg>
+      <input id="buscaEstoque" type="search" placeholder="Buscar item ou proprietário" autocomplete="off" oninput="desenharLista()">
+    </div>
+    <div class="lista" id="lista"></div>
+  </div>
+
   <!-- ========================================================== perguntar -->
   <div id="telaChat" class="oculto">
     <div id="conversa" class="conversa">
@@ -477,6 +685,23 @@
   <datalist id="listaMarcas"></datalist>
 </div>
 </main>
+
+<div class="veu" id="veu" onclick="fecharFolha()"></div>
+<div class="folha" id="folha" role="dialog" aria-modal="true" aria-labelledby="tituloFolha">
+  <div class="alca"></div>
+  <div class="cab">
+    <h3 id="tituloFolha"></h3>
+    <button type="button" class="fecharFolha" onclick="fecharFolha()" aria-label="Fechar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+  </div>
+  <div class="buscaFolha oculto" id="buscaFolha">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m20 20-4.2-4.2"></path></svg>
+    <input id="campoFolha" type="search" autocomplete="off" oninput="filtrarFolha()">
+  </div>
+  <div class="corpo" id="corpoFolha"></div>
+  <div class="rodapeFolha oculto" id="rodapeFolha"></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <div class="barra oculto" id="barra">
   <div class="dentro">
@@ -557,17 +782,26 @@ function aplicarOpcoes(d) {
   d.donos.forEach(function (p) { dono.appendChild(new Option(p.nome, p.id)); });
   if (donoEscolhido) dono.value = donoEscolhido;
 
+  REGISTROS = d.registros || [];
+  REGISTROS.forEach(function (r) { r.dias = r.entrada ? diasEntre(r.entrada, d.hoje) : null; });
+  var estoque = REGISTROS.filter(function (r) { return r.status === 'Em estoque'; })
+    .sort(function (a, b) { return a.item.localeCompare(b.item); });
+
   var item = el('item');
+  var itemEscolhido = item.value;
   item.innerHTML = '';
   item.appendChild(new Option('— escolha —', ''));
-  d.estoque.forEach(function (i) {
+  estoque.forEach(function (i) {
     var o = new Option(i.item, i.id);
     o.dataset.valor = i.valor; o.dataset.dono = i.dono;
     item.appendChild(o);
   });
+  if (itemEscolhido) item.value = itemEscolhido;
 
   el('dataEntrada').value = d.hoje;
   el('dataSaida').value = d.hoje;
+  atualizarRotulos();
+  if (ABA === 'estoque') desenharEstoque();
 }
 
 /**
@@ -580,30 +814,25 @@ function recarregarOpcoes() {
   google.script.run.withSuccessHandler(aplicarOpcoes).carregarOpcoes();
 }
 
-google.script.run.withSuccessHandler(function (d) {
-  aplicarOpcoes(d);
-  el('carregando').classList.add('oculto');
-  el('formEntrada').classList.remove('oculto');
-  el('barra').classList.remove('oculto');
-}).withFailureHandler(function (e) {
-  el('carregando').classList.add('falhou');
-  el('carregando').textContent = 'Erro ao carregar: ' + e.message;
-}).carregarOpcoes();
+
 
 
 function trocar(qual) {
   ABA = qual;
-  var chat = qual === 'chat';
+  var chat = qual === 'chat', form = qual === 'entrada' || qual === 'saida';
   el('telaOk').classList.add('oculto');
   el('formEntrada').classList.toggle('oculto', qual !== 'entrada');
   el('formSaida').classList.toggle('oculto', qual !== 'saida');
+  el('telaEstoque').classList.toggle('oculto', qual !== 'estoque');
   el('telaChat').classList.toggle('oculto', !chat);
-  el('barra').classList.toggle('oculto', chat);
+  el('barra').classList.toggle('oculto', !form);
   el('barraChat').classList.toggle('oculto', !chat);
   el('abaEntrada').setAttribute('aria-selected', qual === 'entrada');
   el('abaSaida').setAttribute('aria-selected', qual === 'saida');
+  el('abaEstoque').setAttribute('aria-selected', qual === 'estoque');
   el('abaChat').setAttribute('aria-selected', chat);
-  if (!chat) el('botaoAcao').textContent = qual === 'entrada' ? 'Registrar entrada' : 'Registrar';
+  if (form) el('botaoAcao').textContent = qual === 'entrada' ? 'Registrar entrada' : 'Registrar';
+  if (qual === 'estoque') desenharEstoque();
   window.scrollTo(0, 0);
 }
 
@@ -657,6 +886,510 @@ function enviarPergunta() {
     .perguntar(txt, HISTORICO);
 }
 
+// ============================================================ utilidades
+var REGISTROS = [];
+
+function diasEntre(de, ate) {
+  return Math.round((Date.parse(ate) - Date.parse(de)) / 864e5);
+}
+function dataBR(iso) {
+  if (!iso) return '—';
+  var p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0];
+}
+/** "Beatriz Almeida" e "beatriz almeida" batem, e "joao" acha "João". */
+function sem(t) {
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+function iniciais(nome) {
+  var p = String(nome).trim().split(/\s+/);
+  return ((p[0] || '')[0] || '').toUpperCase() + ((p.length > 1 ? p[p.length - 1][0] : '') || '').toUpperCase();
+}
+function criar(tag, classe, texto) {
+  var e = document.createElement(tag);
+  if (classe) e.className = classe;
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+/** Texto com o trecho buscado destacado, sem innerHTML (nome vem da planilha). */
+function destacar(pai, texto, busca) {
+  var i = busca ? sem(texto).indexOf(sem(busca)) : -1;
+  if (i < 0) { pai.textContent = texto; return; }
+  pai.appendChild(document.createTextNode(texto.slice(0, i)));
+  pai.appendChild(criar('mark', '', texto.slice(i, i + busca.length)));
+  pai.appendChild(document.createTextNode(texto.slice(i + busca.length)));
+}
+function registro(id) {
+  for (var i = 0; i < REGISTROS.length; i++) if (REGISTROS[i].id === String(id)) return REGISTROS[i];
+  return null;
+}
+
+var tempoToast;
+function aviso(txt) {
+  var t = el('toast');
+  t.textContent = txt; t.classList.add('visivel');
+  clearTimeout(tempoToast);
+  tempoToast = setTimeout(function () { t.classList.remove('visivel'); }, 2600);
+}
+
+// ================================================================= folha
+/**
+ * Uma folha que sobe do rodapé, reaproveitada pela busca, pelos detalhes de
+ * um item e pela correção. Elas se empilham: a busca de proprietário abre por
+ * cima da correção, e fechar a busca volta para a correção como estava.
+ */
+var FOLHA = null, PILHA = [];
+
+function abrirFolha(cfg) {
+  if (FOLHA) PILHA.push(FOLHA);
+  mostrarFolha(cfg);
+}
+function mostrarFolha(cfg) {
+  FOLHA = cfg;
+  el('tituloFolha').textContent = cfg.titulo;
+  el('folha').classList.toggle('alta', !!cfg.alta);
+  el('buscaFolha').classList.toggle('oculto', !cfg.busca);
+  el('rodapeFolha').classList.toggle('oculto', !cfg.rodape);
+  el('rodapeFolha').innerHTML = '';
+  if (cfg.rodape) cfg.rodape(el('rodapeFolha'));
+  el('corpoFolha').innerHTML = '';
+  el('corpoFolha').scrollTop = 0;
+  if (cfg.busca) {
+    el('campoFolha').value = '';
+    el('campoFolha').placeholder = cfg.busca;
+  }
+  cfg.desenhar(el('corpoFolha'), '');
+  el('veu').classList.add('aberto');
+  el('folha').classList.add('aberta');
+  document.body.style.overflow = 'hidden';
+  if (cfg.busca) setTimeout(function () { el('campoFolha').focus(); }, 280);
+}
+function fecharFolha() {
+  if (FOLHA && FOLHA.aoFechar) FOLHA.aoFechar();
+  if (PILHA.length) { mostrarFolha(PILHA.pop()); return; }
+  FOLHA = null;
+  el('veu').classList.remove('aberto');
+  el('folha').classList.remove('aberta');
+  document.body.style.overflow = '';
+  el('campoFolha').blur();
+}
+function filtrarFolha() {
+  if (!FOLHA) return;
+  el('corpoFolha').innerHTML = '';
+  FOLHA.desenhar(el('corpoFolha'), el('campoFolha').value.trim());
+}
+function fecharTudo() {
+  PILHA = [];
+  fecharFolha();
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && FOLHA) fecharFolha(); });
+
+// ======================================================= seletor com busca
+/**
+ * Troca um <select> longo por um campo que abre uma busca.
+ *
+ * A lista de proprietários tem todos os clientes da história da loja: rolar
+ * um select nativo atrás de um nome é lento e convida a cadastrar de novo
+ * quem já existe. O select continua na página (escondido), então o resto do
+ * código segue lendo .value e ouvindo 'change' como antes.
+ */
+var BUSCAS = {};
+
+function montarBusca(idSelect, cfg) {
+  var sel = el(idSelect);
+  sel.classList.add('escondido');
+  sel.tabIndex = -1;
+  var b = criar('button', 'campoBusca');
+  b.type = 'button';
+  b.id = idSelect + 'Busca';
+  b.onclick = function () { abrirBusca(idSelect); };
+  sel.parentNode.insertBefore(b, sel.nextSibling);
+  var rotulo = document.querySelector('label[for="' + idSelect + '"]');
+  if (rotulo) rotulo.htmlFor = b.id;
+  BUSCAS[idSelect] = cfg;
+  atualizarRotulo(idSelect);
+}
+
+function atualizarRotulo(idSelect) {
+  var sel = el(idSelect), b = el(idSelect + 'Busca'), cfg = BUSCAS[idSelect];
+  if (!sel || !b || !cfg) return;
+  var o = sel.selectedOptions[0];
+  b.innerHTML = '';
+  if (!o || !o.value) {
+    b.classList.add('vazio'); b.appendChild(document.createTextNode(cfg.vazio));
+  } else {
+    b.classList.remove('vazio');
+    b.appendChild(document.createTextNode(o.value === 'NOVO' ? 'Novo proprietário' : o.textContent));
+    var sub = cfg.sub && o.value !== 'NOVO' ? cfg.sub(o) : '';
+    if (sub) b.appendChild(criar('small', '', sub));
+  }
+}
+function atualizarRotulos() { for (var id in BUSCAS) atualizarRotulo(id); }
+
+function abrirBusca(idSelect) {
+  var sel = el(idSelect), cfg = BUSCAS[idSelect];
+  var opcoesSel = [].slice.call(sel.options).filter(function (o) { return o.value && o.value !== 'NOVO'; });
+  abrirFolha({
+    titulo: cfg.titulo, busca: cfg.placeholder, alta: true,
+    desenhar: function (corpo, termo) {
+      var achados = opcoesSel.filter(function (o) {
+        return !termo || sem(o.textContent + ' ' + (cfg.sub ? cfg.sub(o) : '')).indexOf(sem(termo)) >= 0;
+      });
+      achados.slice(0, 200).forEach(function (o) {
+        var b = criar('button', 'opcao' + (o.value === sel.value ? ' marcada' : ''));
+        b.type = 'button';
+        if (cfg.iniciais) b.appendChild(criar('span', 'ini', iniciais(o.textContent)));
+        var txt = criar('span', 'txt'), nome = criar('b');
+        destacar(nome, o.textContent, termo);
+        txt.appendChild(nome);
+        if (cfg.sub) txt.appendChild(criar('small', '', cfg.sub(o)));
+        b.appendChild(txt);
+        b.insertAdjacentHTML('beforeend', '<svg class="ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg>');
+        b.onclick = function () { escolher(sel, o.value); };
+        corpo.appendChild(b);
+      });
+      if (!achados.length) {
+        corpo.appendChild(criar('div', 'semResultado',
+          termo ? 'Nada encontrado para "' + termo + '".' : 'A lista está vazia.'));
+      }
+      // Cadastrar fica DEPOIS dos resultados: no topo, convidava a criar de
+      // novo quem já estava logo abaixo — a origem dos donos duplicados.
+      if (cfg.criar) {
+        var novo = criar('button', 'opcao criar');
+        novo.type = 'button';
+        novo.appendChild(criar('span', 'ini', '+'));
+        novo.appendChild(criar('span', 'txt', termo ? 'Cadastrar "' + termo + '" como novo' : 'Cadastrar novo proprietário'));
+        novo.onclick = function () { escolher(sel, 'NOVO'); cfg.criar(termo); };
+        corpo.appendChild(novo);
+      }
+    }
+  });
+}
+
+/**
+ * Recebe o próprio <select>, não o id: aberta por cima da correção, a busca
+ * limpa a folha e o select da correção sai da página. A referência continua
+ * valendo, e o 'change' atualiza o rascunho antes de a correção ser redesenhada.
+ */
+function escolher(sel, valor) {
+  sel.value = valor;
+  sel.dispatchEvent(new Event('change'));
+  atualizarRotulo(sel.id);
+  fecharFolha();
+}
+
+// =============================================================== estoque
+var FILTRO = 'estoque', FAIXA = null, LIMITE = 40;
+var FAIXAS = [
+  { nome: '0–29 dias',  de: 0,  ate: 29 },
+  { nome: '30–59 dias', de: 30, ate: 59 },
+  { nome: '60–89 dias', de: 60, ate: 89 },
+  { nome: '90+ dias',   de: 90, ate: Infinity, critica: true }
+];
+// mesma fronteira da vw_estoque_parado: 90 dias ou mais é parado
+var LIMITE_PARADO = 90;
+
+function mediana(xs) {
+  if (!xs.length) return null;
+  var o = xs.slice().sort(function (a, b) { return a - b; }), m = Math.floor(o.length / 2);
+  return o.length % 2 ? o[m] : Math.round((o[m - 1] + o[m]) / 2);
+}
+
+function desenharEstoque() {
+  var est = REGISTROS.filter(function (r) { return r.status === 'Em estoque'; });
+  var parados = est.filter(function (r) { return r.dias !== null && r.dias >= LIMITE_PARADO; });
+  var soma = function (xs) { return xs.reduce(function (t, r) { return t + r.valor; }, 0); };
+  var bikes = est.filter(function (r) { return r.tipo === 'Bicicleta'; }).length;
+
+  el('stValor').textContent = 'R$ ' + brl(soma(est));
+  el('stItens').textContent = est.length + (est.length === 1 ? ' item' : ' itens') +
+    ' · ' + bikes + (bikes === 1 ? ' bike' : ' bikes') + ', ' + (est.length - bikes) + ' componentes';
+  el('stParados').textContent = parados.length;
+  el('stParadosValor').textContent = 'R$ ' + brl(soma(parados)) + ' parados';
+  var comData = est.filter(function (r) { return r.dias !== null; }).map(function (r) { return r.dias; });
+  var med = mediana(comData);
+  el('stMediana').textContent = med === null ? '—' : med + (med === 1 ? ' dia' : ' dias');
+  var semData = est.length - comData.length;
+  el('stMedianaObs').textContent = semData ? semData + ' sem data de entrada' : 'desde a entrada';
+
+  // barras por faixa de tempo
+  var maior = 1, contagens = FAIXAS.map(function (f) {
+    var n = est.filter(function (r) { return r.dias !== null && r.dias >= f.de && r.dias <= f.ate; }).length;
+    if (n > maior) maior = n;
+    return n;
+  });
+  var caixa = el('faixas'); caixa.innerHTML = '';
+  FAIXAS.forEach(function (f, i) {
+    var b = criar('button', 'faixa' + (f.critica ? ' critica' : '') + (FAIXA === i ? ' ativa' : ''));
+    b.type = 'button';
+    b.setAttribute('aria-label', f.nome + ': ' + contagens[i] + ' itens. Toque para filtrar.');
+    b.appendChild(criar('span', 'nome', f.nome));
+    var trilho = criar('span', 'trilho'), barra = criar('span', 'preench');
+    barra.style.width = (contagens[i] / maior * 100) + '%';
+    trilho.appendChild(barra); b.appendChild(trilho);
+    b.appendChild(criar('span', 'qtd', contagens[i]));
+    b.onclick = function () {
+      if (f.critica) { FAIXA = null; filtrar('parados'); return; }
+      FAIXA = FAIXA === i ? null : i; FILTRO = 'estoque'; LIMITE = 40;
+      desenharEstoque();
+    };
+    caixa.appendChild(b);
+  });
+
+  el('nEstoque').textContent = est.length;
+  el('nParados').textContent = parados.length;
+  el('nVendidos').textContent = REGISTROS.filter(function (r) { return r.status === 'Vendido'; }).length;
+  el('nRetirados').textContent = REGISTROS.filter(function (r) { return r.status === 'Retirado'; }).length;
+  [].forEach.call(el('chips').children, function (c) {
+    c.setAttribute('aria-pressed', c.dataset.filtro === FILTRO);
+  });
+  desenharLista();
+}
+
+function filtrar(f) {
+  FILTRO = f; LIMITE = 40;
+  if (f !== 'estoque') FAIXA = null;
+  desenharEstoque();
+}
+
+function desenharLista() {
+  var termo = el('buscaEstoque').value.trim();
+  var xs = REGISTROS.filter(function (r) {
+    if (FILTRO === 'estoque') {
+      if (r.status !== 'Em estoque') return false;
+      if (FAIXA !== null) { var f = FAIXAS[FAIXA]; return r.dias !== null && r.dias >= f.de && r.dias <= f.ate; }
+      return true;
+    }
+    if (FILTRO === 'parados') return r.status === 'Em estoque' && r.dias !== null && r.dias >= LIMITE_PARADO;
+    return r.status === FILTRO;
+  });
+  if (termo) xs = xs.filter(function (r) { return sem(r.item + ' ' + r.dono + ' ' + r.id).indexOf(sem(termo)) >= 0; });
+
+  // em estoque: o mais antigo primeiro (é o que pede ação); fechados: o mais recente
+  if (FILTRO === 'estoque' || FILTRO === 'parados') {
+    xs.sort(function (a, b) { return (b.dias === null ? -1 : b.dias) - (a.dias === null ? -1 : a.dias); });
+  } else {
+    xs.sort(function (a, b) { return (b.saida || '').localeCompare(a.saida || ''); });
+  }
+
+  var lista = el('lista'); lista.innerHTML = '';
+  xs.slice(0, LIMITE).forEach(function (r) { lista.appendChild(cartao(r, termo)); });
+  if (!xs.length) {
+    lista.appendChild(criar('div', 'semResultado', termo ? 'Nada encontrado para "' + termo + '".' : 'Nenhum item aqui.'));
+  }
+  if (xs.length > LIMITE) {
+    var mais = criar('button', 'maisItens', 'Mostrar mais ' + Math.min(40, xs.length - LIMITE));
+    mais.type = 'button';
+    mais.onclick = function () { LIMITE += 40; desenharLista(); };
+    lista.appendChild(mais);
+  }
+}
+
+function seloDias(r) {
+  var s;
+  if (r.status === 'Em estoque') {
+    if (r.dias === null) return criar('span', 'selo-dias', 'sem data');
+    var critico = r.dias >= LIMITE_PARADO;
+    s = criar('span', 'selo-dias' + (critico ? ' critico' : r.dias >= 60 ? ' atencao' : ''));
+    // parado leva ícone e texto, não só a cor
+    if (critico) s.insertAdjacentHTML('beforeend', '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>');
+    s.appendChild(document.createTextNode((critico ? 'parado · ' : '') + r.dias + (r.dias === 1 ? ' dia' : ' dias')));
+    return s;
+  }
+  s = criar('span', 'selo-dias' + (r.status === 'Vendido' ? ' vendido' : ''),
+            (r.status === 'Vendido' ? 'vendido ' : 'retirado ') + dataBR(r.saida));
+  return s;
+}
+
+function cartao(r, termo) {
+  var b = criar('button', 'reg'); b.type = 'button';
+  var l1 = criar('div', 'l1'), nome = criar('b');
+  destacar(nome, r.item || '(sem descrição)', termo);
+  l1.appendChild(nome);
+  l1.appendChild(criar('span', '', 'R$ ' + brl(r.valor)));
+  var l2 = criar('div', 'l2'), dono = criar('span', 'dono');
+  destacar(dono, r.dono || 'sem proprietário', termo);
+  l2.appendChild(dono);
+  l2.appendChild(seloDias(r));
+  b.appendChild(l1); b.appendChild(l2);
+  b.onclick = function () { abrirDetalhe(r.id); };
+  return b;
+}
+
+function abrirDetalhe(id) {
+  var r = registro(id);
+  if (!r) return;
+  abrirFolha({
+    titulo: r.item || 'Consignação ' + r.id,
+    desenhar: function (corpo) {
+      var d = criar('div', 'detalhe');
+      function linha(k, v) { var l = criar('div', 'linha'); l.appendChild(criar('span', '', k)); l.appendChild(criar('b', '', v)); d.appendChild(l); }
+      linha('Proprietário', r.dono || '—');
+      linha('Valor', 'R$ ' + brl2(r.valor));
+      linha('Entrada', dataBR(r.entrada) + (r.dias !== null && r.status === 'Em estoque' ? ' · há ' + r.dias + (r.dias === 1 ? ' dia' : ' dias') : ''));
+      linha('Situação', r.status + (r.saida ? ' em ' + dataBR(r.saida) : ''));
+      if (r.status === 'Vendido') linha('Canal', r.loja || '—');
+      if (r.obs) linha('Observações', r.obs);
+      linha('Consignação', '#' + r.id);
+      corpo.appendChild(d);
+
+      var acoes = criar('div', 'acoes');
+      if (r.status === 'Em estoque') {
+        var fechar = criar('button', 'primario', 'Fechar este item'); fechar.type = 'button';
+        fechar.onclick = function () {
+          fecharTudo(); trocar('saida');
+          el('item').value = r.id; preencherValor();
+        };
+        acoes.appendChild(fechar);
+      }
+      var corr = criar('button', r.status === 'Em estoque' ? 'secundario' : 'primario', 'Corrigir registro'); corr.type = 'button';
+      corr.onclick = function () { abrirCorrecao(r.id); };
+      acoes.appendChild(corr);
+      corpo.appendChild(acoes);
+    }
+  });
+}
+
+// ============================================================== corrigir
+/**
+ * Editor de uma consignação. Guarda o registro como veio (ANTES) e manda os
+ * dois para o servidor, que só grava se a planilha ainda estiver como ANTES.
+ */
+function abrirCorrecao(id) {
+  var antes = registro(id);
+  if (!antes) return;
+  var dep = JSON.parse(JSON.stringify(antes));
+
+  abrirFolha({
+    titulo: 'Corrigir #' + id, alta: true,
+    rodape: function (r) {
+      r.appendChild(criar('div', 'resumoMudancas')).id = 'resumoMudancas';
+      var b = criar('button', 'enviar', 'Salvar correção');
+      b.type = 'button'; b.id = 'salvarCorrecao'; b.style.marginTop = '10px';
+      b.onclick = function () { salvarCorrecao(antes, dep); };
+      r.appendChild(b);
+    },
+    desenhar: function (corpo) {
+      corpo.innerHTML = '';
+      var f = criar('div', 'cartao');
+
+      function campo(chave, rotulo, construir) {
+        var w = criar('div'); w.dataset.campo = chave;
+        var l = criar('label', '', rotulo); l.htmlFor = 'cor_' + chave;
+        w.appendChild(l); construir(w);
+        f.appendChild(w); return w;
+      }
+      function entrada(chave, tipo, extra) {
+        return function (w) {
+          var i = criar(tipo === 'textarea' ? 'textarea' : 'input');
+          if (tipo !== 'textarea') i.type = tipo;
+          i.id = 'cor_' + chave; i.value = dep[chave];
+          if (extra) extra(i);
+          i.oninput = function () { dep[chave] = i.value; marcar(); };
+          w.appendChild(i);
+        };
+      }
+
+      campo('status', 'Situação', function (w) {
+        var seg = criar('div', 'segmento'); seg.id = 'cor_status';
+        ['Em estoque', 'Vendido', 'Retirado'].forEach(function (st) {
+          var b = criar('button', '', st); b.type = 'button';
+          b.setAttribute('aria-pressed', dep.status === st);
+          b.onclick = function () {
+            dep.status = st;
+            if (st === 'Em estoque') { dep.saida = ''; dep.loja = ''; }
+            if (st === 'Retirado') dep.loja = '';
+            if (st !== 'Em estoque' && !dep.saida) dep.saida = OPCOES.hoje;
+            if (st === 'Vendido' && !dep.loja) dep.loja = 'Física';
+            FOLHA.desenhar(corpo);
+          };
+          seg.appendChild(b);
+        });
+        w.appendChild(seg);
+        if (dep.status !== antes.status && dep.status === 'Em estoque') {
+          w.appendChild(criar('div', 'dica', 'O item volta para o estoque: a data de saída e o canal serão apagados.'));
+        }
+      });
+      campo('item', 'Descrição', entrada('item', 'text'));
+      campo('donoId', 'Proprietário', function (w) {
+        var sel = criar('select'); sel.id = 'cor_donoId';
+        OPCOES.donos.forEach(function (p) { sel.appendChild(new Option(p.nome, p.id)); });
+        if (!OPCOES.donos.some(function (p) { return p.id === dep.donoId; })) {
+          sel.appendChild(new Option(antes.dono || '(sem proprietário)', dep.donoId));
+        }
+        sel.value = dep.donoId;
+        sel.onchange = function () { dep.donoId = sel.value; marcar(); };
+        w.appendChild(sel);
+      });
+      var dupla = criar('div', 'dupla');
+      campo('valor', 'Valor', function (w) {
+        var m = criar('div', 'moeda'); m.appendChild(criar('span', '', 'R$'));
+        entrada('valor', 'number', function (i) { i.inputMode = 'decimal'; i.step = '0.01'; i.min = '0'; })(m);
+        w.appendChild(m);
+      });
+      campo('entrada', 'Data de entrada', entrada('entrada', 'date'));
+      // valor e data de entrada lado a lado
+      var wv = f.querySelector('[data-campo="valor"]'), we = f.querySelector('[data-campo="entrada"]');
+      dupla.appendChild(wv); dupla.appendChild(we); f.appendChild(dupla);
+
+      if (dep.status !== 'Em estoque') {
+        var dupla2 = criar('div', 'dupla');
+        var ws = campo('saida', 'Data de saída', entrada('saida', 'date'));
+        dupla2.appendChild(ws);
+        if (dep.status === 'Vendido') {
+          var wl = campo('loja', 'Canal', function (w) {
+            var sel = criar('select'); sel.id = 'cor_loja';
+            [['Física', 'Loja física'], ['Online', 'Online']].forEach(function (c) { sel.appendChild(new Option(c[1], c[0])); });
+            sel.value = dep.loja || 'Física'; dep.loja = sel.value;
+            sel.onchange = function () { dep.loja = sel.value; marcar(); };
+            w.appendChild(sel);
+          });
+          dupla2.appendChild(wl);
+        }
+        f.appendChild(dupla2);
+      }
+      campo('obs', 'Observações', entrada('obs', 'textarea'));
+      corpo.appendChild(f);
+      // só dá para montar a busca depois que o select está na página
+      delete BUSCAS['cor_donoId'];
+      montarBusca('cor_donoId', { titulo: 'Proprietário', placeholder: 'Buscar pelo nome', vazio: 'Escolha', iniciais: true });
+      marcar();
+
+      function marcar() {
+        var n = 0;
+        ['status', 'item', 'donoId', 'valor', 'entrada', 'saida', 'loja', 'obs'].forEach(function (k) {
+          var mudou = String(dep[k]) !== String(antes[k]);
+          if (mudou) n++;
+          var w = f.querySelector('[data-campo="' + k + '"]');
+          if (w) w.classList.toggle('mudou', mudou);
+        });
+        var r = el('resumoMudancas');
+        if (r) r.textContent = n ? n + (n === 1 ? ' alteração' : ' alterações') + ' para salvar' : 'Nenhuma alteração ainda';
+        if (el('salvarCorrecao')) el('salvarCorrecao').disabled = !n;
+      }
+    },
+    aoFechar: function () { delete BUSCAS['cor_donoId']; }
+  });
+}
+
+function salvarCorrecao(antes, dep) {
+  var b = el('salvarCorrecao');
+  b.disabled = true; b.innerHTML = '<span class="giro"></span>Salvando…';
+  var depois = {};
+  ['status', 'item', 'donoId', 'valor', 'entrada', 'saida', 'loja', 'obs'].forEach(function (k) { depois[k] = dep[k]; });
+  google.script.run
+    .withSuccessHandler(function (msg) {
+      fecharTudo();
+      aviso('✓ ' + msg);
+      recarregarOpcoes();
+    })
+    .withFailureHandler(function (e) {
+      b.disabled = false; b.textContent = 'Salvar correção';
+      el('resumoMudancas').textContent = e.message;
+      el('resumoMudancas').style.color = 'var(--vermelho)';
+    })
+    .corrigirRegistro({ id: antes.id, antes: antes, depois: depois });
+}
+
 function escolherTipo(t) {
   TIPO = t;
   var bike = t === 'Bicicleta';
@@ -676,6 +1409,7 @@ function escolherStatus(s) {
 
 function alternarDono() {
   el('camposDonoNovo').classList.toggle('oculto', el('dono').value !== 'NOVO');
+  atualizarRotulos();
 }
 
 function preencherValor() {
@@ -691,6 +1425,7 @@ function preencherValor() {
     el('dicaItem').textContent = ''; el('valorSaida').value = '';
   }
   mostrarValor('valorSaida', 'valorSaidaFmt');
+  atualizarRotulos();
 }
 
 function erro(id, txt) {
@@ -730,6 +1465,7 @@ function voltar() {
     escolherStatus('Vendido'); preencherValor();
     el('avisoSaida').className = 'aviso';
   }
+  atualizarRotulos();
   trocar(ABA);
 }
 
@@ -797,6 +1533,31 @@ function enviarSaida(ev) {
       observacoes: el('obsSaida').value.trim()
     });
 }
+
+// ------------------------------------------------------------ início
+// no fim do script: as funções e variáveis acima já existem
+montarBusca('dono', {
+  titulo: 'Proprietário', placeholder: 'Buscar pelo nome', vazio: 'Escolha o proprietário', iniciais: true,
+  criar: function (termo) { el('donoNovo').value = termo; setTimeout(function () { el('donoNovo').focus(); }, 300); }
+});
+montarBusca('item', {
+  titulo: 'Item em estoque', placeholder: 'Buscar item ou proprietário', vazio: 'Escolha o item',
+  sub: function (o) {
+    var r = registro(o.value);
+    return (o.dataset.dono || '') + ' · R$ ' + brl(o.dataset.valor) +
+           (r && r.dias !== null ? ' · ' + r.dias + (r.dias === 1 ? ' dia' : ' dias') : '');
+  }
+});
+
+google.script.run.withSuccessHandler(function (d) {
+  aplicarOpcoes(d);
+  el('carregando').classList.add('oculto');
+  el('formEntrada').classList.remove('oculto');
+  el('barra').classList.remove('oculto');
+}).withFailureHandler(function (e) {
+  el('carregando').classList.add('falhou');
+  el('carregando').textContent = 'Erro ao carregar: ' + e.message;
+}).carregarOpcoes();
 </script>
 </body>
 </html>

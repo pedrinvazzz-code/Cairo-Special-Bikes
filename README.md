@@ -51,6 +51,7 @@ appsscript/
 ├── Codigo.gs               → ID automático e sincronismo de status na planilha
 ├── Formulario.gs           → servidor do formulário de entrada e saída
 ├── Formulario.html         → a interface, feita para o celular
+├── teste_formulario.js     → testes da correção de registros contra uma planilha falsa (node)
 └── Agente.gs               → o assistente e suas ferramentas
 
 demo/
@@ -105,6 +106,9 @@ O aplicativo (`appsscript/`) resolve isso em uma tela só, aberta no navegador d
 - Proprietário escolhido de uma lista, com opção de cadastrar novo — o que elimina a duplicação por variação de grafia
 - Venda e retirada como movimentos **separados**; em retirada, o campo de canal nem aparece
 - Trava contra preenchimento simultâneo e recusa de fechar item que já saiu
+- Busca por nome nos seletores de proprietário e de item, sem depender de acento — e "cadastrar novo" só aparece depois dos resultados, para não duplicar quem já existe
+- Aba **Estoque**: valor parado, itens há 90 dias ou mais (a mesma fronteira da `vw_estoque_parado`), tempo mediano em loja e a lista filtrável. Lê a planilha, não o banco, para mostrar o que acabou de ser cadastrado
+- **Correção de registros**, inclusive desfazer um fechamento. O servidor só grava se a linha ainda estiver como a pessoa a viu, e cada alteração vai para a aba *Histórico de correções* com quem, quando, antes e depois
 
 É publicado como app da Web do Apps Script, executando **na conta de quem acessa**: o controle de acesso passa a ser o próprio compartilhamento da planilha, e não uma lista de e-mails mantida no código.
 
