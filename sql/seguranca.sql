@@ -13,9 +13,13 @@
 --
 --   service_role  (pipeline, Power BI)   -> tudo, como hoje
 --   anon          (qualquer um)          -> SÓ a vitrine pública
---   authenticated (usuário logado)       -> nada, por enquanto
+--   authenticated (usuário do agente)    -> as views internas, nenhuma tabela
 --
--- Rodar no SQL Editor do Supabase. É idempotente.
+-- Os grants e revokes das VIEWS ficam no fim do sql/views.sql, não aqui:
+-- recriar uma view devolve o acesso padrão, então quem recria é quem fecha.
+-- Este arquivo cuida do que não muda quando as views mudam.
+--
+-- Rodar no SQL Editor do Supabase, depois do views.sql. É idempotente.
 -- =====================================================================
 
 
@@ -37,34 +41,46 @@ alter table resumo_mensal  enable row level security;
 
 
 -- ---------------------------------------------------------------------
--- 2. Tirar o acesso das views internas
+-- 2. Objeto novo nasce fechado
 --
--- View em Postgres roda, por padrão, com a permissão de quem a criou — e não
--- de quem consulta. Ou seja: a RLS do passo 1 NÃO protege a view sozinha.
--- Uma view interna acessível por anon seria um buraco pela porta dos fundos.
+-- O Supabase vem configurado para dar acesso a anon e authenticated em tudo
+-- que for criado em `public`. Foi assim que a vw_vendas_segmento ficou
+-- legível pela chave pública: ficou fora da lista de revoke, e o padrão
+-- liberou.
 --
--- Por isso o revoke é explícito, e não uma consequência do passo anterior.
+-- Com isto, tabela ou view nova não é lida por ninguém de fora até receber
+-- um grant explícito. Vale para objetos criados pelo papel que rodar este
+-- script (o `postgres`, no SQL Editor).
 -- ---------------------------------------------------------------------
-revoke all on vw_vendas          from anon, authenticated;
-revoke all on vw_receita_mensal  from anon, authenticated;
-revoke all on vw_giro            from anon, authenticated;
-revoke all on vw_estoque_parado  from anon, authenticated;
-revoke all on vw_proprietarios   from anon, authenticated;
-revoke all on vw_estoque_atual   from anon, authenticated;
+alter default privileges in schema public
+    revoke all on tables from anon, authenticated;
 
 
 -- ---------------------------------------------------------------------
--- 3. Liberar só a vitrine
+-- 3. Remover o papel agente_leitura
 --
--- A vw_catalogo_publico não tem proprietário, não tem contato e não tem dias
--- em loja. Mesmo que a chave anon vaze, o que se alcança é o que já está
--- publicado no site da loja.
---
--- Ela roda com a permissão do dono (o padrão), então enxerga a tabela crua
--- apesar da RLS. Isso aqui é intencional: é o mecanismo que permite expor um
--- recorte seguro sem abrir a tabela.
+-- Sobrou da primeira versão do agente, que assinava o próprio token com esse
+-- papel. Deixou de funcionar quando o projeto migrou para chave assimétrica
+-- (ver appsscript/Agente.gs), e o agente passou a entrar como `authenticated`.
+-- Papel sem uso, com membership no authenticator, é superfície à toa.
 -- ---------------------------------------------------------------------
-grant select on vw_catalogo_publico to anon, authenticated;
+do $$
+begin
+    if exists (select 1 from pg_roles where rolname = 'agente_leitura') then
+        revoke all on all tables in schema public from agente_leitura;
+        revoke usage on schema public from agente_leitura;
+        revoke agente_leitura from authenticator;
+        begin
+            drop role agente_leitura;
+        exception when dependent_objects_still_exist then
+            -- sobrou algum privilégio fora das tabelas de `public`. O papel
+            -- já não loga nem é assumido pelo authenticator, então segue sem
+            -- derrubar o resto do script.
+            raise notice 'agente_leitura ainda tem dependências, não foi removido: %', sqlerrm;
+        end;
+    end if;
+end
+$$;
 
 
 -- ---------------------------------------------------------------------
@@ -76,7 +92,8 @@ select
     c.relname                                    as objeto,
     case c.relkind when 'r' then 'tabela' when 'v' then 'view' end as tipo,
     c.relrowsecurity                             as rls,
-    has_table_privilege('anon', c.oid, 'select') as anon_le
+    has_table_privilege('anon', c.oid, 'select') as anon_le,
+    has_table_privilege('authenticated', c.oid, 'select') as agente_le
 from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public'
@@ -84,6 +101,6 @@ where n.nspname = 'public'
 order by tipo, objeto;
 
 -- Esperado:
---   toda tabela      -> rls = true,  anon_le = false
---   toda vw_ interna -> anon_le = false
---   vw_catalogo_publico -> anon_le = true
+--   toda tabela         -> rls = true, anon_le = false, agente_le = false
+--   toda vw_ interna    -> anon_le = false, agente_le = true
+--   vw_catalogo_publico -> anon_le = true,  agente_le = true

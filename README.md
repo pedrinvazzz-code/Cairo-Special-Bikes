@@ -44,8 +44,8 @@ pipeline/
 └── comparar_meses.py       → reconcilia a planilha com o controle paralelo da loja
 
 sql/
-├── views.sql               → a camada semântica: 7 views com as regras de negócio
-└── seguranca.sql           → RLS, revogações e o papel de leitura do assistente
+├── views.sql               → a camada semântica: 7 views com as regras de negócio e quem lê cada uma
+└── seguranca.sql           → RLS, objeto novo nascendo fechado e a conferência final
 
 appsscript/
 ├── Codigo.gs               → ID automático e sincronismo de status na planilha
@@ -211,11 +211,12 @@ O motivo dessas duas camadas: o pipeline chegou a acumular **1.236 execuções v
 - A conta de serviço usada pelo pipeline tem escopo somente-leitura sobre a planilha
 - Nenhum dado de cliente ou valor de venda está presente aqui — apenas o código e uma base de demonstração fictícia
 
-**No banco** (`sql/seguranca.sql`)
+**No banco** (`sql/views.sql` e `sql/seguranca.sql`, nesta ordem)
 
 - **RLS ligada em todas as tabelas, sem policy.** É a configuração segura neste caso: não existe cenário em que alguém de fora deva ler consignação ou proprietário
-- **Revogação explícita nas views internas.** Esse passo costuma ser esquecido: view em Postgres roda com a permissão de quem a criou, então ligar RLS na tabela **não** protege a view. Sem o revoke, a view de proprietários seria uma porta dos fundos para a tabela protegida
-- **Papel dedicado para o assistente**, com `SELECT` nas views e em nenhuma tabela. Se o código tiver um defeito, ou se alguém escrever um comando disfarçado num campo de observação da planilha, o limite é o que o banco permite àquele papel
+- **Revogação explícita nas views internas.** Esse passo costuma ser esquecido: view em Postgres roda com a permissão de quem a criou, então ligar RLS na tabela **não** protege a view. Sem o revoke, a view de proprietários seria uma porta dos fundos para a tabela protegida. Por isso os grants ficam no fim do próprio `views.sql`: recriar uma view devolve o acesso padrão, e o script que recria é o que fecha. Ele começa revogando tudo de `anon` e `authenticated` e só depois libera o necessário, de modo que view esquecida numa lista não fica aberta por omissão
+- **Objeto novo nasce fechado.** O Supabase libera por padrão tudo que é criado em `public`; o `seguranca.sql` desliga esse padrão, então tabela ou view nova só é lida por fora depois de um grant explícito
+- **Usuário dedicado para o assistente**, cujo papel (`authenticated`) tem `SELECT` nas views e em nenhuma tabela. Se o código tiver um defeito, ou se alguém escrever um comando disfarçado num campo de observação da planilha, o limite é o que o banco permite àquele papel
 
 ## Tecnologias
 
@@ -231,10 +232,18 @@ O motivo dessas duas camadas: o pipeline chegou a acumular **1.236 execuções v
 
 ## Histórico de versões
 
+### v3.1 — setembro/2026 · Correções de parser e de acesso ao banco
+
+- `fmt_valor` lia `12.500` como 12,5 e descartava `R$ 3.200`: ponto só de milhar, sem centavos, era tratado como decimal — a mesma família do bug de escala pt-BR
+- `fmt_date` trocava dia e mês em datas ISO (`2026-03-04` virava 3 de abril), porque o `dayfirst` se aplicava também a `yyyy-mm-dd`
+- Testes para os dois casos, e os primeiros testes de data
+- `vw_vendas_segmento` estava legível pela chave pública: ficou fora da lista de revoke. Os grants passaram para o fim do `views.sql`, fechando tudo antes de abrir o necessário, e objeto novo passou a nascer fechado
+- `seguranca.sql` falhava num banco novo ao revogar uma view que não existe mais no repositório; o papel `agente_leitura`, sem uso desde a troca para login do usuário do agente, é removido
+
 ### v3.0 — setembro/2026 · Camada semântica, aplicativo e assistente
 
 - **Sete views** concentrando as regras de negócio, e o Power BI reescrito para ler delas. Motivadas por um defeito em que a mesma regra existia em quatro lugares e um deles divergia
-- **Segurança do banco**: RLS em todas as tabelas, revogação das views internas, papel dedicado para o assistente e uma view pública sem colunas sensíveis
+- **Segurança do banco**: RLS em todas as tabelas, revogação das views internas, usuário dedicado para o assistente e uma view pública sem colunas sensíveis
 - **Aplicativo de preenchimento** em Apps Script, com ID automático, sincronismo de status e domínio fechado nas colunas categóricas
 - **Assistente de dados** com ferramentas parametrizadas sobre as views, em vez de consulta livre
 - **Normalização da fonte**: 63 células corrigidas com trilha de auditoria, incluindo 34 itens cujo status divergia entre abas
