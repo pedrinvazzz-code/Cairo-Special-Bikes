@@ -23,9 +23,13 @@
     --linha:    rgba(18,18,18,.22);
     --linha2:   rgba(18,18,18,.55);
     --fraco:    rgba(18,18,18,.62);
+    --rosado:   #FCEEEF;
+    --ok:       #1F7A4D;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html { -webkit-text-size-adjust: 100%; }
+  /* o cabeçalho é fixo: sem isto, rolar até um aviso de erro o deixa
+     escondido atrás das abas */
+  html { -webkit-text-size-adjust: 100%; scroll-padding-top: 150px; }
   body {
     margin: 0; background: var(--papel); color: var(--tinta);
     font-family: Assistant, system-ui, -apple-system, sans-serif;
@@ -34,18 +38,23 @@
   .dentro { max-width: 480px; margin: 0 auto; }
 
   /* ------------------------------------------------------- cabeçalho */
-  .topo { background: var(--preto); }
-  .topo .dentro { padding: 18px 20px 0 20px; }
-  .topo img { display: block; width: 148px; height: auto; margin: 0 auto 4px auto; }
+  /* Cabeçalho fixo: com o formulário longo, as abas somem da tela logo na
+     primeira rolagem e o Cairo tinha que voltar ao topo para trocar. */
+  .topo { background: var(--preto); position: sticky; top: 0; z-index: 20; }
+  .topo .dentro { padding: 14px 20px 0 20px; }
+  .topo img { display: block; width: 116px; height: auto; margin: 0 auto 2px auto; }
 
   .abas { display: flex; }
   .abas button {
-    flex: 1; padding: 13px 6px 12px 6px; font: inherit; font-size: 13px;
+    flex: 1; padding: 11px 6px 10px 6px; font: inherit; font-size: 12px;
     font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-    color: rgba(245,245,245,.55); background: transparent;
+    color: rgba(245,245,245,.5); background: transparent;
     border: none; border-bottom: 3px solid transparent; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    transition: color .15s;
   }
   .abas button[aria-selected="true"] { color: var(--claro); border-bottom-color: var(--vermelho); }
+  .abas button[aria-selected="true"] svg { color: var(--vermelho); }
 
   main { padding: 0 20px 108px 20px; }
 
@@ -80,6 +89,9 @@
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23121212' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 13px center;
   }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
   textarea { height: 64px; padding: 11px 12px; resize: vertical; line-height: 1.45; }
   input::placeholder, textarea::placeholder { color: rgba(18,18,18,.35); }
   input:focus, select:focus, textarea:focus {
@@ -95,19 +107,37 @@
   .dupla { display: flex; gap: 10px; }
   .dupla > div { flex: 1; min-width: 0; }
   .dica { font-size: 12.5px; color: var(--fraco); margin-top: 7px; line-height: 1.4; }
+  .dica:empty { display: none; }
+  .dica.valorFmt { font-weight: 700; color: var(--tinta); font-variant-numeric: tabular-nums; }
+  .dica .menos, .dica .mais { display: block; font-weight: 600; }
+  .dica .menos { color: var(--vermelho); }
+  .dica .mais { color: var(--ok); }
+  .item-info {
+    margin-top: 8px;
+    padding: 9px 11px; background: var(--cinza); font-size: 13px; color: var(--fraco);
+  }
+  .item-info:empty { display: none; }
+  .item-info b { color: var(--tinta); font-weight: 700; }
 
   /* ------------------------------------------------ escolha em blocos */
   .tiles { display: flex; gap: 10px; }
   .tiles button {
-    flex: 1; padding: 16px 10px 14px 10px; font: inherit; cursor: pointer;
+    position: relative; flex: 1; padding: 18px 10px 15px 10px; font: inherit; cursor: pointer;
     background: var(--papel); border: 1px solid var(--linha2); border-radius: 0;
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 9px;
     color: var(--fraco); font-size: 12px; font-weight: 700;
     letter-spacing: .05em; text-transform: uppercase;
+    transition: background .15s, color .15s, border-color .15s;
   }
   .tiles button[aria-pressed="true"] {
-    border-color: var(--vermelho); color: var(--vermelho);
+    border-color: var(--vermelho); color: var(--vermelho); background: var(--rosado);
     box-shadow: inset 0 0 0 1px var(--vermelho);
+  }
+  /* selo de marcado no canto: a cor sozinha não basta para quem não
+     distingue bem o vermelho */
+  .tiles button[aria-pressed="true"]::after {
+    content: ''; position: absolute; top: 0; right: 0; width: 20px; height: 20px;
+    background: var(--vermelho) url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5 10 17.5 19 7'/%3E%3C/svg%3E") no-repeat center;
   }
   .tiles svg { display: block; }
 
@@ -123,22 +153,41 @@
     color: #FFF; background: var(--vermelho);
     border: none; border-radius: 0; cursor: pointer;
   }
+  .enviar { display: flex; align-items: center; justify-content: center; gap: 10px; }
   .enviar:active { background: var(--vermelho-escuro); }
-  .enviar:disabled { opacity: .45; cursor: default; }
+  .enviar:disabled { opacity: .6; cursor: default; }
+
+  .giro {
+    width: 16px; height: 16px; flex-shrink: 0; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.35); border-top-color: #FFF;
+    animation: girar .7s linear infinite;
+  }
+  .giro.escuro { border-color: rgba(18,18,18,.15); border-top-color: var(--vermelho); width: 26px; height: 26px; border-width: 3px; }
+  @keyframes girar { to { transform: rotate(360deg); } }
 
   .aviso { margin-top: 20px; padding: 13px 14px; font-size: 14px; display: none; }
   .aviso.erro {
-    display: block; background: #FCEEEF;
+    display: flex; gap: 10px; align-items: flex-start; background: var(--rosado);
     border-left: 4px solid var(--vermelho); color: #7E1720;
+  }
+  .aviso.erro::before {
+    content: '!'; flex-shrink: 0; width: 20px; height: 20px; margin-top: 1px;
+    background: var(--vermelho); color: #FFF; font-weight: 800; font-size: 13px;
+    line-height: 20px; text-align: center;
   }
 
   /* --------------------------------------------------------- sucesso */
   .sucesso { text-align: center; padding: 52px 8px 20px 8px; }
   .selo {
-    width: 60px; height: 60px; margin: 0 auto 18px auto;
-    background: var(--tinta); color: #FFF;
+    width: 68px; height: 68px; margin: 0 auto 20px auto;
+    background: var(--vermelho); color: #FFF;
     display: flex; align-items: center; justify-content: center;
+    animation: surgir .35s cubic-bezier(.2,.9,.3,1.3) both;
   }
+  .selo path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: tracar .35s .2s ease-out forwards; }
+  @keyframes surgir { from { transform: scale(.4); opacity: 0; } }
+  @keyframes tracar { to { stroke-dashoffset: 0; } }
+  .sucesso .denovo + .denovo { margin-top: 10px; border-color: var(--linha); color: var(--fraco); }
   .sucesso h2 {
     margin: 0 0 8px 0; font-size: 14px; font-weight: 800;
     letter-spacing: .12em; text-transform: uppercase;
@@ -153,27 +202,49 @@
 
   /* ------------------------------------------------------- perguntar */
   .conversa { padding-top: 22px; }
-  .vazio { padding: 26px 0 8px 0; }
+  .vazio { padding: 22px 0 8px 0; }
+  .vazio .marca {
+    width: 44px; height: 44px; margin-bottom: 14px; background: var(--tinta); color: #FFF;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .vazio h2 {
+    margin: 0 0 4px 0; font-size: 13px; font-weight: 800;
+    letter-spacing: .1em; text-transform: uppercase;
+  }
   .vazio p { margin: 0 0 18px 0; color: var(--fraco); font-size: 14.5px; }
   .sugestoes { display: flex; flex-direction: column; gap: 8px; }
   .sugestoes button {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
     text-align: left; padding: 13px 14px; font: inherit; font-size: 14.5px;
     color: var(--tinta); background: var(--papel);
     border: 1px solid var(--linha); border-radius: 0; cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .sugestoes button::after {
+    content: ''; flex-shrink: 0; width: 14px; height: 14px; opacity: .45;
+    background: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23121212' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5l7 7-7 7'/%3E%3C/svg%3E") no-repeat center;
   }
   .sugestoes button:active { border-color: var(--vermelho); color: var(--vermelho); }
 
   .fala { margin-bottom: 18px; }
   .fala .quem {
+    display: flex; align-items: center; gap: 6px;
     font-size: 10.5px; font-weight: 800; letter-spacing: .12em;
     text-transform: uppercase; color: var(--fraco); margin-bottom: 5px;
   }
+  .fala:not(.eu) .quem::before { content: ''; width: 8px; height: 8px; background: var(--tinta); }
   .fala.eu .quem { color: var(--vermelho); }
   .fala .texto { font-size: 15px; line-height: 1.55; white-space: pre-wrap; }
   .fala.eu .texto {
     background: var(--cinza); padding: 11px 13px; border-left: 3px solid var(--vermelho);
   }
-  .pensando { color: var(--fraco); font-size: 14.5px; }
+  /* três pontos pulando no lugar do "consultando…": a resposta pode levar
+     uns segundos, e texto parado parece travado */
+  .pensando { display: flex; gap: 5px; padding: 8px 0; }
+  .pensando i { width: 7px; height: 7px; background: var(--fraco); animation: pular 1s infinite ease-in-out; }
+  .pensando i:nth-child(2) { animation-delay: .15s; }
+  .pensando i:nth-child(3) { animation-delay: .3s; }
+  @keyframes pular { 0%, 60%, 100% { transform: none; opacity: .35; } 30% { transform: translateY(-5px); opacity: 1; } }
 
   .linhaChat { display: flex; gap: 8px; }
   .linhaChat input { flex: 1; min-width: 0; }
@@ -185,7 +256,20 @@
   .linhaChat button:disabled { opacity: .45; cursor: default; }
 
   .oculto { display: none !important; }
-  .carregando { padding: 64px 0; text-align: center; color: var(--fraco); font-size: 14px; }
+  .carregando {
+    padding: 72px 0; color: var(--fraco); font-size: 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+  .carregando.falhou { color: #7E1720; text-align: center; }
+
+  button:focus-visible, .tiles button:focus-visible {
+    outline: 2px solid var(--vermelho); outline-offset: 2px;
+  }
+  .abas button:focus-visible { outline-offset: -4px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+    .selo path { stroke-dashoffset: 0; }
+  }
 </style>
 </head>
 <body>
@@ -195,9 +279,9 @@
     <img src="https://cairospecialbikes.com.br/cdn/shop/files/1_Sem_fundo.png?v=1766172200&width=600"
          alt="Cairo Special Bikes">
     <div class="abas" role="tablist">
-      <button id="abaEntrada" role="tab" aria-selected="true" onclick="trocar('entrada')">Entrada</button>
-      <button id="abaSaida"   role="tab" aria-selected="false" onclick="trocar('saida')">Fechar</button>
-      <button id="abaChat"    role="tab" aria-selected="false" onclick="trocar('chat')">Perguntar</button>
+      <button id="abaEntrada" role="tab" aria-selected="true" onclick="trocar('entrada')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17"></rect><path d="M12 8v8M8 12h8"></path></svg>Entrada</button>
+      <button id="abaSaida"   role="tab" aria-selected="false" onclick="trocar('saida')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12.2V4a1 1 0 0 1 1-1h8.2a1 1 0 0 1 .7.3l7.8 7.8a1 1 0 0 1 0 1.4l-8.2 8.2a1 1 0 0 1-1.4 0l-7.8-7.8a1 1 0 0 1-.3-.7Z"></path><circle cx="7.5" cy="7.5" r="1.5"></circle></svg>Fechar</button>
+      <button id="abaChat"    role="tab" aria-selected="false" onclick="trocar('chat')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h16v11.5H10l-4.5 4v-4H4Z"></path><path d="M8 9h8M8 12.2h5"></path></svg>Perguntar</button>
     </div>
   </div>
 </div>
@@ -205,7 +289,7 @@
 <main>
 <div class="dentro">
 
-  <div id="carregando" class="carregando">carregando a planilha…</div>
+  <div id="carregando" class="carregando"><span class="giro escuro"></span><span id="textoCarregando">carregando a planilha…</span></div>
 
   <!-- ============================================================ entrada -->
   <form id="formEntrada" class="oculto" onsubmit="enviarEntrada(event)">
@@ -214,17 +298,11 @@
       <div class="titulo"><span class="num">1</span><h2>O que entrou</h2></div>
       <div class="tiles">
         <button type="button" id="tileBike" aria-pressed="true" onclick="escolherTipo('Bicicleta')">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle>
-            <path d="M5.5 17.5 9.5 7h5l4 10.5"></path><path d="M9.5 7h-2"></path><path d="M12 17.5 15 9"></path>
-          </svg>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="16" r="3.5"></circle><circle cx="18.5" cy="16" r="3.5"></circle><path d="M5.5 16H11l5-7 2.5 7"></path><path d="M5.5 16 9 9h7"></path><path d="M9 9l2 7"></path><path d="M7.5 6.5h3M9 6.5V9"></path><path d="M16 9l-.8-3H18"></path></svg>
           Bicicleta
         </button>
         <button type="button" id="tileComp" aria-pressed="false" onclick="escolherTipo('Componente/Acessório')">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3.2"></circle>
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.2 2.2M16.9 16.9l2.2 2.2M19.1 4.9l-2.2 2.2M7.1 16.9l-2.2 2.2"></path>
-          </svg>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="6.5"></circle><circle cx="12" cy="12" r="2.5"></circle><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"></path></svg>
           Componente
         </button>
       </div>
@@ -282,8 +360,10 @@
           <div>
             <label for="valor">Valor combinado</label>
             <div class="moeda"><span>R$</span>
-              <input id="valor" type="number" inputmode="decimal" step="0.01" min="0" required placeholder="24900">
+              <input id="valor" type="number" inputmode="decimal" step="0.01" min="0" required placeholder="24900"
+                     oninput="mostrarValor('valor', 'valorFmt')">
             </div>
+            <div class="dica valorFmt" id="valorFmt"></div>
           </div>
           <div><label for="dataEntrada">Data de entrada</label><input id="dataEntrada" type="date" required></div>
         </div>
@@ -303,7 +383,7 @@
       <div class="cartao">
         <label for="item">Em estoque</label>
         <select id="item" onchange="preencherValor()"></select>
-        <div class="dica" id="dicaItem"></div>
+        <div class="item-info" id="dicaItem"></div>
       </div>
     </div>
 
@@ -311,17 +391,11 @@
       <div class="titulo"><span class="num">2</span><h2>O que aconteceu</h2></div>
       <div class="tiles">
         <button type="button" id="tileVendeu" aria-pressed="true" onclick="escolherStatus('Vendido')">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 6h18l-1.6 9.2a2 2 0 0 1-2 1.8H6.6a2 2 0 0 1-2-1.8Z"></path>
-            <circle cx="9" cy="20.5" r="1.3"></circle><circle cx="17" cy="20.5" r="1.3"></circle>
-          </svg>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12.2V4a1 1 0 0 1 1-1h8.2a1 1 0 0 1 .7.3l7.8 7.8a1 1 0 0 1 0 1.4l-8.2 8.2a1 1 0 0 1-1.4 0l-7.8-7.8a1 1 0 0 1-.3-.7Z"></path><circle cx="7.5" cy="7.5" r="1.5"></circle></svg>
           Vendeu
         </button>
         <button type="button" id="tileRetirou" aria-pressed="false" onclick="escolherStatus('Retirado')">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"></path>
-            <path d="M10 16 14 12 10 8"></path><path d="M14 12H3"></path>
-          </svg>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"></path><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"></path></svg>
           O dono retirou
         </button>
       </div>
@@ -341,8 +415,10 @@
           <div>
             <label for="valorSaida">Valor</label>
             <div class="moeda"><span>R$</span>
-              <input id="valorSaida" type="number" inputmode="decimal" step="0.01" min="0">
+              <input id="valorSaida" type="number" inputmode="decimal" step="0.01" min="0"
+                     oninput="mostrarValor('valorSaida', 'valorSaidaFmt')">
             </div>
+            <div class="dica valorFmt" id="valorSaidaFmt"></div>
           </div>
           <div><label for="dataSaida">Data</label><input id="dataSaida" type="date" required></div>
         </div>
@@ -359,7 +435,9 @@
   <div id="telaChat" class="oculto">
     <div id="conversa" class="conversa">
       <div class="vazio">
-        <p>Pergunte em português. A resposta vem do banco, na hora.</p>
+        <div class="marca"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h16v11.5H10l-4.5 4v-4H4Z"></path><path d="M8 9h8M8 12.2h5"></path></svg></div>
+        <h2>Pergunte sobre a loja</h2>
+        <p>Em português, do seu jeito. A resposta vem do banco, na hora.</p>
         <div class="sugestoes">
           <button type="button" onclick="sugerir(this)">Quanto vendi em agosto?</button>
           <button type="button" onclick="sugerir(this)">O que está parado há mais tempo?</button>
@@ -377,9 +455,10 @@
         <path d="M4 12.5 9.5 18 20 6.5"></path>
       </svg>
     </div>
-    <h2>Registrado</h2>
+    <h2 id="tituloOk">Registrado</h2>
     <p id="textoOk"></p>
     <button type="button" class="denovo" onclick="voltar()">Registrar outro</button>
+    <button type="button" class="denovo" id="botaoIrOutra" onclick="irOutra()"></button>
   </div>
 
   <datalist id="listaMarcas"></datalist>
@@ -414,6 +493,37 @@ function opcoes(sel, vals, vazio) {
   vals.forEach(function (v) { sel.appendChild(new Option(v, v)); });
 }
 function brl(n) { return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0 }); }
+function brl2(n) { return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+/**
+ * Mostra o valor digitado já formatado embaixo do campo.
+ *
+ * O teclado numérico não tem separador de milhar, e "24900" e "2490" são
+ * fáceis de confundir de relance — um zero a mais ou a menos é a diferença
+ * entre a bike e a roda. Na saída, compara também com o valor combinado.
+ */
+function mostrarValor(idCampo, idDica) {
+  var v = el(idCampo).value, alvo = el(idDica);
+  alvo.textContent = '';
+  if (v === '' || isNaN(Number(v))) return;
+  alvo.appendChild(document.createTextNode('R$ ' + brl2(v)));
+  if (idCampo !== 'valorSaida') return;
+  var o = el('item').selectedOptions[0];
+  var combinado = o && o.value ? Number(o.dataset.valor) : NaN;
+  var dif = Number(v) - combinado;
+  if (!isNaN(dif) && dif !== 0) {
+    var s = document.createElement('span');
+    s.className = dif < 0 ? 'menos' : 'mais';
+    s.textContent = 'R$ ' + brl(Math.abs(dif)) + (dif < 0 ? ' abaixo' : ' acima') + ' do combinado';
+    alvo.appendChild(s);
+  }
+}
+
+function pontos() {
+  var d = document.createElement('span'); d.className = 'pensando';
+  d.innerHTML = '<i></i><i></i><i></i>';
+  return d;
+}
 
 /** Preenche as listas com o que veio do servidor. */
 function aplicarOpcoes(d) {
@@ -463,6 +573,7 @@ google.script.run.withSuccessHandler(function (d) {
   el('formEntrada').classList.remove('oculto');
   el('barra').classList.remove('oculto');
 }).withFailureHandler(function (e) {
+  el('carregando').classList.add('falhou');
   el('carregando').textContent = 'Erro ao carregar: ' + e.message;
 }).carregarOpcoes();
 
@@ -512,19 +623,17 @@ function enviarPergunta() {
   el('pergunta').value = '';
   el('botaoChat').disabled = true;
   bolha('Você', txt, 'eu');
-  var alvo = bolha('Assistente', 'consultando…');
-  alvo.classList.add('pensando');
+  var alvo = bolha('Assistente', '');
+  alvo.appendChild(pontos());
 
   google.script.run
     .withSuccessHandler(function (r) {
-      alvo.classList.remove('pensando');
       alvo.textContent = r.resposta;
       HISTORICO = r.historico;
       el('botaoChat').disabled = false;
       alvo.scrollIntoView({ behavior: 'smooth', block: 'end' });
     })
     .withFailureHandler(function (e) {
-      alvo.classList.remove('pensando');
       // Erro de servidor do provedor do modelo nao e culpa de quem perguntou,
       // e mostrar "500 Internal Server Error" para o Cairo nao ajuda em nada.
       alvo.textContent = /respondeu 5\d\d|429/.test(e.message)
@@ -560,10 +669,15 @@ function preencherValor() {
   var o = el('item').selectedOptions[0];
   if (o && o.value) {
     el('valorSaida').value = o.dataset.valor;
-    el('dicaItem').textContent = 'De ' + o.dataset.dono + ' · combinado R$ ' + brl(o.dataset.valor);
+    var info = el('dicaItem');
+    info.textContent = 'De ';
+    var b1 = document.createElement('b'); b1.textContent = o.dataset.dono;
+    var b2 = document.createElement('b'); b2.textContent = 'R$ ' + brl(o.dataset.valor);
+    info.appendChild(b1); info.appendChild(document.createTextNode(' · combinado ')); info.appendChild(b2);
   } else {
     el('dicaItem').textContent = ''; el('valorSaida').value = '';
   }
+  mostrarValor('valorSaida', 'valorSaidaFmt');
 }
 
 function erro(id, txt) {
@@ -572,9 +686,10 @@ function erro(id, txt) {
 }
 
 function ocupado(sim) {
-  el('botaoAcao').disabled = sim;
-  if (sim) el('botaoAcao').textContent = 'gravando…';
-  else el('botaoAcao').textContent = ABA === 'entrada' ? 'Registrar entrada' : 'Registrar';
+  var b = el('botaoAcao');
+  b.disabled = sim;
+  if (sim) b.innerHTML = '<span class="giro"></span>Gravando…';
+  else b.textContent = ABA === 'entrada' ? 'Registrar entrada' : 'Registrar';
 }
 
 function sucesso(msg) {
@@ -582,6 +697,9 @@ function sucesso(msg) {
   el('formSaida').classList.add('oculto');
   el('barra').classList.add('oculto');
   el('textoOk').textContent = msg;
+  el('tituloOk').textContent = ABA === 'entrada' ? 'Entrada registrada'
+                             : STATUS === 'Vendido' ? 'Venda registrada' : 'Retirada registrada';
+  el('botaoIrOutra').textContent = ABA === 'entrada' ? 'Fechar um item' : 'Registrar uma entrada';
   el('telaOk').classList.remove('oculto');
   window.scrollTo(0, 0);
 }
@@ -592,6 +710,7 @@ function voltar() {
     el('dataEntrada').value = OPCOES.hoje;
     escolherTipo('Bicicleta'); alternarDono();
     el('avisoEntrada').className = 'aviso';
+    mostrarValor('valor', 'valorFmt');
   } else {
     el('formSaida').reset();
     el('dataSaida').value = OPCOES.hoje;
@@ -599,6 +718,12 @@ function voltar() {
     el('avisoSaida').className = 'aviso';
   }
   trocar(ABA);
+}
+
+/** Da tela de sucesso direto para a outra aba, já limpa. */
+function irOutra() {
+  voltar();
+  trocar(ABA === 'entrada' ? 'saida' : 'entrada');
 }
 
 function submeter() {
