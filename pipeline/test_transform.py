@@ -10,7 +10,7 @@ inventados — servem de trava de regressao, nao de especificacao ideal.
 """
 import math
 
-from transform import fmt_valor, fmt_rm_valor, fmt_status, fmt_loja, safe_int
+from transform import fmt_valor, fmt_rm_valor, fmt_status, fmt_loja, fmt_date, safe_int
 
 # (entrada, esperado) — comparação especial para NaN feita à parte
 CASOS_FMT_VALOR = [
@@ -24,6 +24,16 @@ CASOS_FMT_VALOR = [
     ('', None),
     ('abc', None),
     (5, None),                    # abaixo do mínimo de 10 — tratado como ausência
+    # ponto só de milhar, sem centavos: era lido como decimal e dava 12.5
+    ('12.500', 12500.0),
+    ('R$ 3.200', 3200.0),
+    ('R$1.500', 1500.0),
+    ('1,500', 1500.0),             # vírgula só de milhar (en_US)
+    ('1500,50', 1500.5),           # vírgula decimal sem milhar
+    ('150,00', 150.0),
+    ('2.999,90', 2999.9),
+    ('1,234.56', 1234.56),
+    ('9.5', None),                 # decimal abaixo de 10
 ]
 
 CASOS_FMT_RM_VALOR = [
@@ -51,6 +61,17 @@ CASOS_FMT_LOJA = [
     ('on line', 'Online'),
     ('on-line', 'Online'),
     ('Online', 'Online'),
+    (None, None),
+]
+
+CASOS_FMT_DATE = [
+    ('04/03/2026', '2026-03-04'),             # dd/mm/yyyy, o formato da planilha
+    ('4/3/26', '2026-03-04'),
+    ('2026-03-04', '2026-03-04'),             # ISO: dayfirst trocava dia e mês
+    ('2026-03-04 00:00:00', '2026-03-04'),
+    ('31/12/2019', None),                     # fora da faixa 2020–2030
+    ('', None),
+    ('abc', None),
     (None, None),
 ]
 
@@ -83,10 +104,12 @@ def main():
     falhas += rodar('fmt_rm_valor', fmt_rm_valor, CASOS_FMT_RM_VALOR)
     falhas += rodar('fmt_status', fmt_status, CASOS_FMT_STATUS)
     falhas += rodar('fmt_loja', fmt_loja, CASOS_FMT_LOJA)
+    falhas += rodar('fmt_date', fmt_date, CASOS_FMT_DATE)
     falhas += rodar('safe_int', safe_int, CASOS_SAFE_INT)
 
     total = sum(len(c) for c in (
-        CASOS_FMT_VALOR, CASOS_FMT_RM_VALOR, CASOS_FMT_STATUS, CASOS_FMT_LOJA, CASOS_SAFE_INT,
+        CASOS_FMT_VALOR, CASOS_FMT_RM_VALOR, CASOS_FMT_STATUS, CASOS_FMT_LOJA,
+        CASOS_FMT_DATE, CASOS_SAFE_INT,
     ))
     if falhas:
         print(f"\n❌ {falhas}/{total} testes falharam")

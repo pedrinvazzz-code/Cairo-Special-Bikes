@@ -28,11 +28,12 @@
  * tabela de proprietários com nome e telefone, e aí a única coisa separando o
  * agente desse dado seria eu não ter escrito besteira.
  *
- * Também não usa a anon sozinha: o sql/seguranca.sql revoga o acesso dela às
+ * Também não usa a anon sozinha: o sql/views.sql revoga o acesso dela às
  * views internas de propósito, porque ela é pública por natureza.
  *
- * O que ele faz é assinar um token com o papel `agente_leitura`, criado no
- * sql/views.sql, que tem SELECT nas seis views e em mais nada. Se este arquivo
+ * O que ele faz é entrar como um usuário dedicado (ver tokenAgente_), cujo
+ * papel é `authenticated`, que tem SELECT nas views e em nenhuma tabela crua
+ * (sql/views.sql, seção 7). Se este arquivo
  * tiver um bug, ou se alguém escrever um comando disfarçado num campo de
  * observação da planilha, o teto não é a minha atenção — é o que o banco
  * permite àquele papel.
@@ -256,7 +257,7 @@ function base64url_(bytes) {
  *
  * Então o agente entra como um usuário dedicado, criado em Authentication →
  * Users, e usa o token que o Supabase devolve. O papel passa a ser
- * `authenticated`, que tem SELECT nas cinco views internas e em NENHUMA tabela.
+ * `authenticated`, que tem SELECT nas views internas e em NENHUMA tabela.
  *
  * O que isso custa, dito com todas as letras: qualquer usuário autenticado
  * deste projeto teria o mesmo alcance. Hoje existe um só, o do agente. Se um
@@ -698,7 +699,7 @@ function testarConfiguracao() {
   // Agora so vale se o erro vier do banco.
   try {
     consultar_('proprietarios', 'select=*&limit=1');
-    Logger.log('ATENCAO: o agente alcancou a tabela proprietarios. Rode o sql/seguranca.sql.');
+    Logger.log('ATENCAO: o agente alcancou a tabela proprietarios. Rode o sql/views.sql e o sql/seguranca.sql.');
   } catch (e) {
     if (/respondeu (401|403)/.test(e.message) || /permission denied/i.test(e.message)) {
       Logger.log('tabela proprietarios bloqueada pelo banco, como esperado');

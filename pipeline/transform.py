@@ -52,17 +52,30 @@ def fmt_loja(v):
     return LOJA_MAP.get(val.lower(), val)
 
 
+ISO_DATA = re.compile(r'^\d{4}-\d{2}-\d{2}')
+
+
 def fmt_date(v, id_ref=None, campo=''):
     try:
-        d = pd.to_datetime(v, dayfirst=True)
+        s = str(v).strip()
+        # dayfirst=True tambem se aplica a yyyy-mm-dd e troca dia e mes
+        # ("2026-03-04" virava 3 de abril). ISO tem formato fixo: le direto.
+        if ISO_DATA.match(s):
+            d = pd.to_datetime(s[:10], format='%Y-%m-%d')
+        else:
+            d = pd.to_datetime(v, dayfirst=True)
         if pd.isna(d):
             return None
         if d.year > 2030 or d.year < 2020:
             print(f"  ⚠ Data fora da faixa em {campo} (ID {id_ref}): {v}")
             return None
         return d.strftime('%Y-%m-%d')
-    except:
+    except (ValueError, TypeError, OverflowError):
         return None
+
+
+MILHAR_PONTO = re.compile(r'^\d{1,3}(\.\d{3})+$')    # 12.500 / 1.234.567
+MILHAR_VIRGULA = re.compile(r'^\d{1,3}(,\d{3})+$')  # 12,500 / 1,234,567
 
 
 def fmt_valor(v):
@@ -73,13 +86,22 @@ def fmt_valor(v):
             f = float(v)
             return None if f < 10 else f
         s = str(v).strip().replace('R$', '').replace(' ', '')
-        if re.match(r'^\d{1,3}(,\d{3})*(\.\d+)?$', s):
-            s = s.replace(',', '')
-        elif re.match(r'^\d{1,3}(\.\d{3})*(,\d+)?$', s):
-            s = s.replace('.', '').replace(',', '.')
+        if '.' in s and ',' in s:
+            # os dois separadores: o que vem por ultimo e o decimal
+            if s.rfind(',') > s.rfind('.'):
+                s = s.replace('.', '').replace(',', '.')   # 1.234,56
+            else:
+                s = s.replace(',', '')                     # 1,234.56
+        elif MILHAR_PONTO.match(s) or MILHAR_VIRGULA.match(s):
+            # separador so de milhar. "12.500" e doze mil e quinhentos, nao
+            # 12,5: nenhum preco da loja tem tres casas decimais. Ler como
+            # decimal foi o que ja gravou valor mil vezes menor no banco.
+            s = s.replace('.', '').replace(',', '')
+        else:
+            s = s.replace(',', '.')                        # 1500,50 / 150,00
         f = float(s)
         return None if f < 10 else f
-    except:
+    except (ValueError, TypeError):
         return None
 
 

@@ -242,32 +242,32 @@ comment on view vw_catalogo_publico is
 
 
 -- ---------------------------------------------------------------------
--- 7. O usuário do agente
+-- 7. Quem lê o quê
 --
--- Só SELECT, e só nas views. Ele não enxerga consignacoes nem proprietarios,
--- que são onde moram nome e telefone de terceiro.
+-- Este bloco mora AQUI, e não só no seguranca.sql, porque o `drop view ...
+-- cascade; create view` acima recria cada view com o acesso padrão do
+-- Supabase, que libera tudo em `public` para anon e authenticated. Rodar este
+-- arquivo sem este bloco reabria as views internas para a chave pública.
+--
+-- Começa fechando tudo — tabelas, views e qualquer view antiga que ainda
+-- exista no banco sem estar neste arquivo — e depois abre só o necessário:
+--
+--   anon           -> só a vitrine
+--   authenticated  -> as views internas (é o papel do usuário do agente,
+--                     ver appsscript/Agente.gs) e nenhuma tabela crua
+--   service_role   -> tudo, como antes (pipeline e Power BI)
 -- ---------------------------------------------------------------------
-do $$
-begin
-    if not exists (select 1 from pg_roles where rolname = 'agente_leitura') then
-        create role agente_leitura nologin;
-    end if;
-end
-$$;
+revoke all on all tables in schema public from anon, authenticated;
 
-grant usage on schema public to agente_leitura;
-
--- Sem isto o PostgREST não consegue assumir o papel: quem atende a requisição
--- é o `authenticator`, e ele só troca para um papel do qual é membro.
-grant agente_leitura to authenticator;
+grant select on vw_catalogo_publico to anon, authenticated;
 
 grant select on
     vw_vendas,
     vw_receita_mensal,
     vw_giro,
     vw_estoque_parado,
-    vw_proprietarios,
-    vw_catalogo_publico
-to agente_leitura;
+    vw_vendas_segmento,
+    vw_proprietarios
+to authenticated;
 
 -- deliberadamente ausente: grant nas tabelas cruas.
