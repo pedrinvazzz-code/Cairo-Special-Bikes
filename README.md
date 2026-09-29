@@ -108,6 +108,7 @@ O aplicativo (`appsscript/`) resolve isso em uma tela só, aberta no navegador d
 - Trava contra preenchimento simultâneo e recusa de fechar item que já saiu
 - Busca por nome nos seletores de proprietário e de item, sem depender de acento — e "cadastrar novo" só aparece depois dos resultados, para não duplicar quem já existe
 - Aba **Estoque**: valor parado, itens há 90 dias ou mais (a mesma fronteira da `vw_estoque_parado`), tempo mediano em loja e a lista filtrável. Lê a planilha, não o banco, para mostrar o que acabou de ser cadastrado
+- **Ficha do proprietário**: tudo de um dono numa tela — o que está na loja, o que vendeu e o que levou de volta. Abre pelo nome no detalhe de um item ou pela busca do estoque, e responde ao dono que liga perguntando se a bike vendeu
 - **Correção de registros**, inclusive desfazer um fechamento. O servidor só grava se a linha ainda estiver como a pessoa a viu, e cada alteração vai para a aba *Histórico de correções* com quem, quando, antes e depois
 
 É publicado como app da Web do Apps Script, executando **na conta de quem acessa**: o controle de acesso passa a ser o próprio compartilhamento da planilha, e não uma lista de e-mails mantida no código.
