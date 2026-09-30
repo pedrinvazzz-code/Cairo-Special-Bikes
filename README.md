@@ -1,295 +1,247 @@
 # Cairo Special Bikes — Plataforma de Dados
 
-Plataforma de dados desenvolvida para uma loja de consignação de bicicletas: pipeline de ETL que sincroniza a planilha operacional com um banco PostgreSQL na nuvem, uma camada de views que concentra as regras de negócio, dashboards em Power BI, um aplicativo de preenchimento que roda no celular da loja e um assistente que responde perguntas sobre o negócio em português.
+Plataforma de dados de ponta a ponta para uma loja de consignação de bicicletas: um **aplicativo de campo** que grava na planilha, um **pipeline de ETL** que sincroniza a planilha com um PostgreSQL na nuvem, uma **camada semântica em SQL** que concentra as regras de negócio, **dashboards em Power BI** e um **assistente em linguagem natural** que responde perguntas sobre o negócio sem escrever SQL.
 
-> 💡 Projeto de consultoria de dados real, desenvolvido para a Cairo Special Bikes (Uberlândia, MG). Este repositório contém apenas o código do pipeline — nenhum dado de clientes, valor de venda ou credencial está versionado aqui.
+> Projeto de consultoria de dados real, desenvolvido para a Cairo Special Bikes (Uberlândia, MG) e em uso diário pela loja. Nenhum dado de cliente, valor de venda ou credencial está versionado aqui: as capturas de tela usam uma base fictícia gerada por `demo/gerar_dados_demo.py`.
 
-## Sobre
+---
 
-A loja registrava suas operações (consignações de bicicletas e componentes, cadastro de proprietários, resumo mensal de vendas) manualmente em planilhas do Google Sheets. Este pipeline automatiza a extração, limpeza e carga desses dados em um banco relacional, eliminando o retrabalho manual e viabilizando análises consistentes em Power BI.
+## Em 30 segundos
 
-O preenchimento da planilha é feito pela equipe da loja no dia a dia, o que torna a etapa de transformação tão importante quanto a de carga: boa parte do código existe para lidar com variações de digitação, datas incompletas e formatos monetários inconsistentes sem descartar o registro.
+| | |
+|---|---|
+| **Problema** | A operação vivia em 12 planilhas preenchidas à mão, com datas inconsistentes, valores em formatos misturados e a mesma regra de negócio reescrita em vários lugares. Não dava para confiar em faturamento, giro ou estoque. |
+| **O que construí** | Aplicativo mobile (Apps Script) → Google Sheets → ETL em Python (GitHub Actions, a cada 2h) → Supabase/PostgreSQL → 7 views com as regras de negócio → Power BI e um assistente com ferramentas parametrizadas. |
+| **Resultado** | Uma fonte única de escrita, uma definição única de cada métrica, carga que falha alto em vez de gravar errado em silêncio, e uma janela de análise confiável declarada **no próprio dado**. |
+| **Destaques técnicos** | Auditoria de qualidade que encontrou uma estimativa de migração contaminando 2/3 da receita histórica; um bug de parser que passou por **1.236 execuções verdes**; RLS e papéis no Postgres; concorrência otimista e trilha de auditoria no app; 67 testes automatizados. |
+
+---
 
 ## Arquitetura
 
-```
-                            ┌─→  Power BI  (4 páginas)
-Google Sheets               │
-      │                     │
-      ├→ Extract → Transform → Load → Supabase → Camada de views → Assistente
-      │  (gspread) (pandas)   (REST)  (Postgres)  (regras de negócio)
-      │
-      └← Aplicativo de preenchimento (Apps Script, roda no celular)
+```mermaid
+flowchart LR
+    APP["📱 App de campo<br/>Apps Script · mobile"] -->|escreve| SHEET[("Google Sheets<br/>fonte única de escrita")]
+    SHEET -->|extract · gspread| ETL["Pipeline Python<br/>GitHub Actions · a cada 2h"]
+    ETL -->|upsert + deleção<br/>+ verificação| DB[("Supabase<br/>PostgreSQL")]
+    DB --> VIEWS["Camada semântica<br/>7 views · regras de negócio"]
+    VIEWS --> BI["Power BI<br/>4 páginas"]
+    VIEWS --> AGENT["Assistente<br/>7 ferramentas, sem SQL livre"]
+    AGENT --> APP
 ```
 
-O pipeline roda automaticamente a cada 2 horas via **GitHub Actions**, mantendo o banco sincronizado com a planilha sem intervenção manual.
+**Uma direção de escrita.** A planilha é o único lugar onde se escreve: o app grava nela, o pipeline lê dela, e tudo depois do banco é leitura. Isso elimina a pergunta "qual das versões está certa?", que era o problema original da loja.
 
-A planilha continua sendo o **único ponto de escrita**: tudo o que vem depois é leitura. O aplicativo escreve nela, o pipeline lê dela, e as views e o assistente leem do banco.
+---
+
+## Decisões de engenharia (e o trade-off de cada uma)
+
+**1. Manter a planilha como fonte, em vez de migrar a loja para um banco.**
+A equipe já sabia usar a planilha, e trocar a ferramenta de trabalho de um pequeno varejo é caro e arriscado. O custo foi o trabalho no *Transform*: boa parte do código existe para lidar com digitação humana (datas incompletas, `R$ 1.234,56` e `1,234.56` na mesma coluna, `on line`/`on-line`/`online`) sem descartar o registro.
+
+**2. Regras de negócio em views SQL, e não no Power BI nem no código.**
+A regra de comissão por faixa estava escrita em **quatro lugares**. Três concordavam; um não, porque as medidas DAX que repartiam a comissão por faixa não tinham filtro de período e somavam o histórico inteiro. O total fechava e só a repartição estava errada, o tipo de defeito que passa em revisão. Hoje cada regra existe **uma vez**, em `sql/views.sql`, e o Power BI e o assistente leem de lá.
+
+**3. O assistente não escreve SQL: escolhe entre 7 ferramentas.**
+Um modelo gerando consulta do zero decidiria sozinho o que o projeto levou meses fechando: calcularia giro pela média em vez da mediana, contaria item *retirado* como receita, leria um mês pré-corte como se fosse confiável. A regra certa não está na pergunta, está no histórico do projeto. As ferramentas devolvem **a conta pronta**, não linhas: na primeira versão, a de estoque devolvia registros e o modelo contava sozinho, usando `> 90 dias` onde a regra é `>= 90`. A correção foi tirar a fronteira do alcance do modelo.
+
+**4. A carga falha alto.**
+Qualquer lote rejeitado derruba o job com código de saída diferente de zero, e uma etapa de verificação pós-carga confere as contagens tabela a tabela e procura sinais de valor implausível. Motivo: *execução verde não é prova de dado certo* (veja os postmortems abaixo).
+
+**5. A deleção tem trava.**
+Registro apagado na planilha precisa sumir do banco, mas uma leitura incompleta da API pareceria uma exclusão em massa. Acima de 50 exclusões numa rodada, o pipeline avisa e **não apaga**, partindo do princípio de que isso é leitura incompleta, e não exclusão real.
+
+**6. Segurança por papel no banco, não por cuidado no código.**
+RLS ligada em todas as tabelas, sem policy. As views internas têm acesso revogado explicitamente, porque view em Postgres roda com a permissão de quem a criou: ligar RLS na tabela **não** protege a view. O assistente entra com um usuário dedicado, com `SELECT` nas views e em nenhuma tabela. Se alguém escrever um comando disfarçado num campo de observação, o teto é o que o banco permite àquele papel.
+
+**7. O app roda com a identidade de quem o acessa.**
+O Apps Script é publicado como "executar como o usuário que acessa", então o controle de acesso é o próprio compartilhamento da planilha, e não uma lista de e-mails mantida no código.
+
+---
+
+## Qualidade de dados: o que a auditoria encontrou
+
+### A janela de análise confiável
+
+Consolidar as 12 planilhas exigiu decidir o que fazer com registro sem data utilizável, e havia muito: **109 consignações** carregavam a data de criação do arquivo em vez da data real de entrada, e **250** tinham a saída anterior ou igual à entrada. Apagá-las descartaria o histórico, então o critério foi estimar: redistribuir as entradas concentradas e ajustar as saídas inconsistentes para o último dia do mês conhecido.
+
+A estimativa deixou um rastro previsível: **a data estimada cai em borda de mês**. Meses depois, quantificar esse rastro virou o teste mais revelador do projeto. Distribuir a receita pelo **dia do mês** mostrou **dois terços de toda a receita histórica no dia 1, 30 ou 31**. O corte é nítido:
+
+| Período | Receita do mês em dia de borda |
+|---|---|
+| Até março de 2026 | entre **63% e 100%** |
+| De abril de 2026 em diante | entre **0% e 29%**, e cada caso tem confirmação documental |
+
+**Consequência assumida na entrega:** faturamento mensal, giro e sazonalidade anteriores a abril de 2026 descrevem o *método de estimativa*, não o comportamento de venda. A regra virou a coluna `confiavel` em `vw_vendas`, então o aviso viaja junto com o número em vez de depender de alguém lembrar. O assistente é instruído a avisar antes de citar qualquer mês com `confiavel = false`.
+
+### Reconciliação com o controle paralelo
+
+A loja mantinha um Excel local além da planilha. O cruzamento item a item separou **divergências legítimas** de **problemas reais**, porque misturar as duas infla a percepção de caos e faz o cliente desconfiar de tudo:
+
+- **Fronteira de mês:** o mesmo item lançado em meses diferentes. É deslocamento, e o total do período não muda.
+- **Preço de tabela × preço fechado:** um controle guardava o anunciado, o outro o negociado.
+- **Aba defasada, publicação não retirada, artefato de migração, itens de balcão:** explicáveis, sem dado faltando.
+- **Nunca cadastrado:** a única classe em que havia, de fato, dado faltando.
+
+As correções acordadas com o cliente ficam versionadas em `pipeline/correcoes.csv` (`id, campo, valor_novo, motivo`) e são aplicadas por `aplicar_correcoes.py`, que roda em **modo de simulação por padrão**. Como o Google Sheets não versiona histórico, esse par de arquivos é o que permite reconstruir o que mudou na fonte, quando e por quê. Na normalização, **63 células** foram corrigidas com trilha, incluindo **34 de 589 itens** cujo status divergia entre as abas.
+
+### Mediana, não média
+
+O giro (dias entre entrada e venda) se resume por **mediana**. A média mistura duas populações, o item que chega e vende em poucos dias e o estoque antigo que finalmente saiu, e a cauda longa puxa a média para um número que não descreve nenhum dos dois grupos. A view `vw_giro` restringe a conta aos itens em que **as duas datas são registro corrente**, o único recorte em que o giro é mensurável.
+
+Um efeito que vale explicar ao cliente: a **idade mediana do estoque atual** é bem maior que o **giro mediano**. Não há contradição. O que vende rápido sai da conta do estoque, e o que encalha fica e envelhece (viés de sobrevivência). As duas métricas juntas contam a história: *quando vende, vende rápido; o que não vendeu nesse prazo tende a ficar muito tempo*. Por isso o app destaca os itens parados há 90 dias ou mais.
+
+---
+
+## Postmortems: bugs que ensinaram algo
+
+**1.236 execuções verdes gravando um valor mil vezes errado.**
+A aba de resumo mensal misturava `R$ 123.456,00` (pt-BR) e `R$ 98,765.00` (en-US) na mesma coluna. O parser tratava só a vírgula como separador e transformava `144.100,00` em `144.1`. O pipeline rodou verde por meses porque nada conferia o número depois de gravar.
+→ Parser único que distingue os dois formatos, testes com os formatos reais que quebraram a base, e uma verificação pós-carga que falha se um total mensal cair abaixo de um piso plausível.
+
+**Lote inteiro recusado, execução verde.**
+Uma chave primária repetida na planilha fazia o Postgres recusar o lote (`ON CONFLICT DO UPDATE` não pode afetar a mesma linha duas vezes). O erro era só impresso e o processo saía com código zero: os registros mais recentes nunca chegavam ao banco, e o painel parecia atualizado.
+→ Deduplicação por chave antes do envio, e falha de lote agora interrompe o job.
+
+**Upsert puro não reflete exclusão.**
+Um registro apagado na planilha permanecia no banco indefinidamente.
+→ Deleção dos registros sumidos da fonte, em ordem inversa das chaves estrangeiras e com a trava de 50 exclusões.
+
+**`12.500` virava `12,5`, e `2026-03-04` virava 3 de abril.**
+Um valor com ponto só de milhar e sem centavos era lido como decimal. E o `dayfirst=True` do pandas também se aplicava a datas ISO, trocando dia e mês.
+→ Regras explícitas para o separador de milhar e leitura ISO com formato fixo. Os testes novos falham nos 6 casos contra o código antigo e passam no novo.
+
+**A view de vendas estava aberta para a chave pública.**
+O script de segurança revogava o acesso de uma lista de views, e uma view nova ficou de fora. Pior: rodar de novo o `views.sql` recriava as views com o acesso padrão do Supabase, desfazendo as revogações.
+→ Os grants foram para o fim do próprio `views.sql` (quem recria é quem fecha): primeiro se revoga tudo, depois se libera o necessário. E objeto novo passou a nascer fechado (`alter default privileges`). O antes e o depois foram validados num Postgres local que imita os papéis do Supabase.
+
+**Um `.pbix` público com a base inteira dentro.**
+Em modo Import, o arquivo do Power BI embute os dados, incluindo nome e telefone de clientes. Ele ficou público por um dia e foi removido do histórico do Git.
+→ O modelo passou a ser versionado como `.pbip` (texto), com o cache de dados (`.pbi/`) no `.gitignore`.
+
+---
+
+## O aplicativo de campo
+
+Cadastrar uma bicicleta exigia mexer em três abas e digitar dois IDs à mão, e fechar uma venda exigia mudar o status em dois lugares (daí os 34 status divergentes). O app resolve isso numa tela só, aberta no celular da loja:
+
+- **Entrada e fechamento** com IDs automáticos, trava contra preenchimento simultâneo (`LockService`) e recusa de fechar um item que já saiu.
+- **Busca que ignora acento** nos seletores de proprietário e de item. "Cadastrar novo" só aparece *depois* dos resultados, para não duplicar quem já existe.
+- **Aba Estoque:** valor em estoque, itens parados há 90 dias ou mais (a mesma fronteira da `vw_estoque_parado`), idade mediana, distribuição por faixa de dias e lista filtrável. Lê a planilha, e não o banco, para mostrar o que acabou de ser cadastrado.
+- **Ficha do proprietário:** tudo de um dono numa tela, que responde ao dono que liga perguntando "vendeu minha bike?".
+- **Correção de registros com concorrência otimista:** a tela envia o registro como o viu e como quer que fique, e o servidor só grava se a planilha ainda estiver como a pessoa viu. Toda alteração vai para uma aba de histórico, com quem, quando, o valor antes e o depois.
+
+<p align="center">
+  <img src="docs/app/estoque.png" width="200" alt="Aba Estoque">
+  <img src="docs/app/ficha_proprietario.png" width="200" alt="Ficha do proprietário">
+  <img src="docs/app/correcao.png" width="200" alt="Correção de registro">
+  <img src="docs/app/busca.png" width="200" alt="Busca de proprietário">
+</p>
+<p align="center"><sub>Capturas com dados fictícios.</sub></p>
+
+## O assistente
+
+Uma aba do app responde em português: quanto se vendeu num mês, o que está parado há mais tempo, qual categoria mais sai. O provedor do modelo (Anthropic ou NVIDIA NIM) é trocável em uma linha. A rotina `testarConfiguracao` **calcula o gabarito chamando as próprias ferramentas**, em vez de comparar com números fixos que envelheceriam. Ela também confirma que o usuário do assistente é barrado na tabela de proprietários *pelo banco*: só conta como bloqueio um erro 401/403 vindo do Postgres, não qualquer falha.
+
+## Dashboard (Power BI)
+
+Quatro páginas (visão geral, financeiro, estoque e segmentação) com o modelo lendo das views.
+
+> *Números e nomes abaixo são fictícios.* A base de demonstração preserva a estrutura real (contagens, distribuições e datas) e substitui nomes, contatos e valores. Os parâmetros dessa substituição não são versionados, e o script recusa rodar sem eles: publicados, tornariam a anonimização reversível.
+
+![Visão Geral](docs/Visao_Geral.png)
+![Financeiro](docs/Financeiro.png)
+![Estoque](docs/Estoque.png)
+![Segmentação](docs/Segmentacao_Produtos.png)
+
+### Modelo de dados
+
+![Diagrama do banco](docs/diagrama_banco.png)
+
+`docs/dados_exemplo.xlsx` traz uma planilha com a mesma arquitetura, com nomes e valores embaralhados. `consultas.sql` reúne *queries* de apoio: buscas, clientes, estoque, ticket médio e receita.
+
+---
+
+## Testes e verificação
+
+| Camada | O que roda | Quando |
+|---|---|---|
+| Parsers (`pipeline/test_transform.py`) | 53 casos com os formatos reais que já quebraram a base | antes de toda carga, no GitHub Actions |
+| Pós-carga (`pipeline/verificar.py`) | contagem banco × planilha por tabela, total mensal implausível, venda sem valor ou sem data | depois de toda carga; falha o job |
+| App (`appsscript/teste_formulario.js`) | 14 casos da correção de registros contra uma planilha falsa em memória: conflito de edição, reabertura, validação, propagação, histórico | `node appsscript/teste_formulario.js` |
+| Assistente (`testarConfiguracao`) | papel do token, bloqueio da tabela pelo banco, e 4 perguntas com gabarito calculado pelas ferramentas | antes de liberar uma versão |
+| Segurança (`sql/seguranca.sql`) | consulta final que lista, objeto a objeto, RLS e quem consegue ler | ao aplicar o script |
+
+---
+
+## Stack
+
+**Python** (pandas, gspread, requests) · **PostgreSQL / Supabase** (views, RLS, papéis, PostgREST) · **Google Apps Script** (app web e assistente) · **Power BI** (DAX, modelo em `.pbip`) · **GitHub Actions** (agendamento e CI) · **API da Anthropic / NVIDIA NIM** (modelo do assistente, com *tool use*)
+
+## Como rodar
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env                 # SUPABASE_URL, SUPABASE_KEY, SHEET_ID, GOOGLE_CREDENTIALS
+
+cd pipeline
+python test_transform.py             # testes dos parsers (sem rede)
+python main.py                       # extract → transform → load → verificar
+
+node ../appsscript/teste_formulario.js   # testes do servidor do app (sem rede)
+```
+
+Banco: rodar `sql/views.sql` e depois `sql/seguranca.sql` no SQL Editor do Supabase (os dois são idempotentes). App: colar os arquivos de `appsscript/` num projeto do Apps Script ligado à planilha e publicar como app da Web, executando como o usuário que acessa.
 
 ## Estrutura
 
 ```
 pipeline/
-├── extract.py              → lê as 5 abas da planilha (Google Sheets API)
-├── transform.py            → limpa, valida e padroniza os dados
-├── load.py                 → envia para o Supabase e remove o que saiu da planilha
-├── verificar.py            → confere a carga e falha alto em divergência
-├── test_transform.py       → testes dos parsers com os formatos que já quebraram a base
-├── main.py                 → orquestra as etapas
-├── correcoes.csv           → registro de auditoria das correções aplicadas na fonte
-├── normalizacoes.csv       → registro das normalizações de domínio
-├── aplicar_correcoes.py    → aplica as correções na planilha (dry run por padrão)
-├── normalizar_dominios.py  → padroniza as colunas categóricas antes da lista suspensa
-├── sincronizar_status.py   → alinha o status do item entre as abas
-└── comparar_meses.py       → reconcilia a planilha com o controle paralelo da loja
+├── extract.py · transform.py · load.py   → as três etapas
+├── verificar.py                          → invariantes pós-carga; falha alto
+├── main.py                               → orquestração
+├── test_transform.py                     → testes dos parsers
+├── correcoes.csv · aplicar_correcoes.py  → correções na fonte, auditáveis (dry run por padrão)
+└── normalizar_dominios.py · sincronizar_status.py · comparar_meses.py · ...
 
 sql/
-├── views.sql               → a camada semântica: 7 views com as regras de negócio e quem lê cada uma
-└── seguranca.sql           → RLS, objeto novo nascendo fechado e a conferência final
+├── views.sql        → a camada semântica e quem lê cada view
+└── seguranca.sql    → RLS, privilégios padrão, conferência
 
 appsscript/
+├── Formulario.gs / .html   → o app de campo
+├── Agente.gs               → o assistente e suas ferramentas
 ├── Codigo.gs               → ID automático e sincronismo de status na planilha
-├── Formulario.gs           → servidor do formulário de entrada e saída
-├── Formulario.html         → a interface, feita para o celular
-└── Agente.gs               → o assistente e suas ferramentas
+└── teste_formulario.js     → testes do servidor do app
 
-demo/
-└── gerar_dados_demo.py     → gera a base fictícia usada nas capturas deste README
-
-.github/workflows/
-└── sync.yml                → agenda a execução automática (cron a cada 2h)
+demo/gerar_dados_demo.py    → base fictícia para as capturas
+.github/workflows/sync.yml  → testes + pipeline a cada 2h
 ```
 
-## O que o pipeline faz
+---
 
-**Extract** (`extract.py`)
-Conecta à planilha via API (`gspread`) com credencial de conta de serviço em escopo somente-leitura e lê as 5 abas: Consignações, Proprietários, Bicicletas, Componentes e Resumo Mensal. Falha na leitura de uma aba não derruba as outras.
+## O que eu faria a seguir
 
-**Transform** (`transform.py`)
-
-- Padroniza status e canal de venda (variações como `on line`, `on-line` e `online` viram um valor único)
-- Converte e valida datas, descartando as que caem fora da faixa 2020–2030 e reportando o ID e o campo de origem
-- Imputa a data de saída de itens vendidos sem data preenchida (entrada + 15 dias), contabilizando quantos registros foram estimados
-- Avisa quando a data de saída é anterior ou igual à de entrada, sem alterar o dado
-- Normaliza valores monetários em formatos diferentes (`R$ 1.234,56`, `1,234.56`, `1234.56`) para `float`
-- Valida integridade referencial: descarta consignações que apontam para bicicletas ou componentes inexistentes
-- Reporta no console quantos registros foram validados, descartados ou estimados em cada tabela
-
-**Load** (`load.py`)
-Envia os dados tratados para o Supabase via REST API, em lotes de 100 registros, com `upsert` (insere ou atualiza sem duplicar). Depois da carga, remove do banco os registros que não existem mais na planilha — a planilha é a fonte da verdade, então exclusão lá precisa se refletir aqui. A limpeza roda na ordem inversa das tabelas por causa das chaves estrangeiras e tem uma trava de segurança: acima de 50 exclusões em uma rodada, ela avisa e não apaga, partindo do princípio de que isso indica leitura incompleta da planilha e não exclusão real.
-
-Qualquer lote que falhe interrompe o pipeline com código de saída diferente de zero, para que a execução apareça vermelha no GitHub Actions em vez de passar despercebida.
-
-## A camada de views
-
-Sete views no Supabase (`sql/views.sql`) concentram as definições que antes viviam espalhadas pelo código, pelas medidas do Power BI e pelos relatórios. Power BI e assistente passaram a ler delas.
-
-A necessidade apareceu de um defeito concreto: a regra de comissão da loja estava escrita em quatro lugares diferentes. Três concordavam; um não — as medidas que repartem a comissão por faixa não tinham filtro de período e somavam o histórico inteiro, enquanto o resto da página respeitava a janela. O total fechava e só a repartição estava errada, que é o tipo de defeito que passa despercebido em revisão.
-
-As principais:
-
-- **`vw_vendas`** — vendas com faixa e comissão já aplicadas, e uma coluna `confiavel` que marca se aquele período tem data de saída em que se possa confiar
-- **`vw_giro`** — dias entre entrada e saída, restrito aos itens em que **as duas datas são registro corrente**; é o recorte em que o giro é mensurável
-- **`vw_estoque_parado`** — estoque com idade e faixa de tempo parado. `dias_em_loja` fica nulo quando a data de entrada nunca foi registrada, em vez de estimada
-- **`vw_catalogo_publico`** — a vitrine, sem proprietário, sem contato e sem dias parados. A proteção não é um filtro que se possa esquecer de aplicar: as colunas não existem
-
-Completam a camada `vw_receita_mensal`, `vw_proprietarios` e `vw_vendas_segmento`.
-
-## O aplicativo de preenchimento
-
-Cadastrar uma bicicleta exigia mexer em três abas da planilha — criar o proprietário, criar o item, criar a consignação — e digitar dois IDs à mão. Fechar uma venda exigia mudar o status em dois lugares, e em setembro de 2026 havia 34 itens de 589 com as duas versões divergentes.
-
-O aplicativo (`appsscript/`) resolve isso em uma tela só, aberta no navegador do celular:
-
-- IDs gerados automaticamente nas quatro abas
-- Proprietário escolhido de uma lista, com opção de cadastrar novo — o que elimina a duplicação por variação de grafia
-- Venda e retirada como movimentos **separados**; em retirada, o campo de canal nem aparece
-- Trava contra preenchimento simultâneo e recusa de fechar item que já saiu
-
-É publicado como app da Web do Apps Script, executando **na conta de quem acessa**: o controle de acesso passa a ser o próprio compartilhamento da planilha, e não uma lista de e-mails mantida no código.
-
-## O assistente
-
-Dentro do mesmo aplicativo, uma aba responde perguntas em português: quanto se vendeu num mês, o que está parado há mais tempo, qual categoria mais sai.
-
-O modelo **não escreve SQL**. Recebe sete ferramentas, cada uma uma consulta fixa sobre uma view, e escolhe qual usar. A razão é direta: escrevendo consulta do zero, ele decidiria sozinho o que o projeto levou meses fechando — calcularia giro pela média em vez da mediana, contaria item retirado como receita, leria um mês anterior ao corte de confiabilidade como se fosse normal. A regra certa não está na pergunta, está no histórico do projeto.
-
-As ferramentas devolvem a conta pronta, não a lista de linhas. Na primeira versão, a de estoque devolvia os registros e o modelo contava — usou `> 90 dias` onde a regra é `>= 90`. O erro não foi dele: foi da definição do limite ter escapado do banco.
-
-O provedor do modelo é trocável em uma linha, e a configuração de teste (`testarConfiguracao`) calcula o gabarito chamando as próprias ferramentas, em vez de comparar com números fixos que envelheceriam.
-
-## Qualidade de dados e auditoria
-
-### A janela de análise confiável
-
-Consolidar as doze planilhas exigiu decidir o que fazer com registro sem data utilizável, e havia muito: 109 consignações carregavam a data de criação do arquivo original em vez da data real de entrada, e 250 tinham saída anterior ou igual à entrada.
-
-Apagar esses registros descartaria o histórico da loja. O critério adotado, e documentado na época, foi estimar:
-
-- entradas concentradas na data de criação do arquivo, **redistribuídas** ao longo dos meses correspondentes
-- saídas inconsistentes, **ajustadas para o último dia do mês** quando o mês era conhecido
-- saídas sem mês confiável, **zeradas** para confirmação posterior com o cliente
-
-A decisão manteve a base utilizável, e deixou um rastro previsível: a data estimada cai em borda de mês. Meses depois, quantificar esse rastro virou o teste mais revelador da auditoria — distribuir a receita pelo **dia do mês** mostra dois terços de toda a receita histórica no dia 1, 30 ou 31.
-
-O corte é nítido: até março de 2026, entre 63% e 100% da receita de cada mês cai em borda; de abril em diante, entre 0% e 29%, e cada caso remanescente tem confirmação documental — é a partir dali que a data passou a ser registrada no momento da venda.
-
-**A consequência foi assumida na entrega:** faturamento mensal, giro e sazonalidade anteriores a abril de 2026 descrevem o método de estimativa, não o comportamento de venda. A análise recortou a janela e explicou isso ao cliente, e a regra virou a coluna `confiavel` no banco — assim o aviso viaja junto com o número, em vez de depender de alguém lembrar.
-
-### Reconciliação com os controles paralelos
-
-A loja mantinha, além da planilha, um controle local em Excel. O cruzamento item a item identificou classes de divergência que são legítimas do ponto de vista do negócio, e distingui-las importa: misturar "diferença" com "problema" infla a percepção de caos e faz o cliente desconfiar de tudo.
-
-- **Fronteira de mês** — o mesmo item lançado em meses diferentes nos dois controles. Não é dinheiro sumido: é deslocamento, e o total do período não muda
-- **Preço de tabela x preço fechado** — um controle guardava o valor anunciado, o outro o negociado
-- **Aba defasada** — o arquivo local foi salvo antes de a venda acontecer
-- **Publicação não retirada** — o site mantinha como disponível um item que já tinha saído
-- **Artefato de migração** — datas de borda herdadas da consolidação
-- **Itens de balcão e oficina**, que circulam fora do fluxo de consignação e, por definição, não entram na planilha
-- **Nunca cadastrado** — a única classe em que há, de fato, dado faltando
-
-As correções decididas com o cliente ficam versionadas em `pipeline/correcoes.csv`, no formato `id, campo, valor_novo, motivo`, e são aplicadas na planilha por `pipeline/aplicar_correcoes.py`. O script roda em modo de simulação por padrão, mostrando valor atual e valor novo de cada célula, e só grava com a flag `--aplicar`. Como o Google Sheets não versiona histórico, esse par de arquivos é o que permite reconstruir o que mudou na fonte, quando e por quê.
-
-## Dashboard
-
-Os dados carregados no Supabase alimentam um dashboard em Power BI com 4 páginas: visão geral, financeiro, estoque e segmentação de produtos.
-
-> *Os números e nomes abaixo são fictícios.* As capturas vêm de um dashboard de demonstração ligado a uma base gerada por `demo/gerar_dados_demo.py`, que preserva a estrutura real — contagens, distribuições e datas — e substitui nomes, contatos e valores. Os parâmetros dessa substituição não são versionados, e o script recusa rodar sem eles: publicados, tornariam a anonimização reversível.
-
-**Visão Geral**
-![Visão Geral](docs/Visao_Geral.png)
-
-**Acompanhamento Financeiro**
-![Financeiro](docs/Financeiro.png)
-
-**Controle de Estoque**
-![Estoque](docs/Estoque.png)
-
-**Segmentação de Bikes e Componentes**
-![Segmentação](docs/Segmentacao_Produtos.png)
-
-## Estrutura dos dados
-
-Uma planilha de exemplo com a mesma arquitetura de dados está disponível em [`docs/dados_exemplo.xlsx`](docs/dados_exemplo.xlsx) — nomes de clientes e valores foram anonimizados/embaralhados, mantendo a estrutura de tabelas e relacionamentos.
-
-> A aba "Resumo Mensal" (indicadores financeiros consolidados da loja) não foi incluída, por conter informações sensíveis do negócio.
-
-As tabelas principais são:
-
-- **Proprietários** — cadastro de clientes consignantes
-- **Bicicletas** / **Componentes** — itens em consignação (marca, modelo, categoria, status)
-- **Consignações** — tabela central, ligando cliente + item + valor + status (vendido, em estoque, retirado)
-
-## Banco de Dados e Consultas
-
-O modelo de dados relacional foi desenhado para suportar as análises e dashboards do projeto.
-
-![Diagrama do Banco de Dados](docs/diagrama_banco.png)
-
-Além do pipeline, o projeto conta com um arquivo de consultas SQL (`consultas.sql`) na raiz do repositório, com *queries* úteis para extração rápida de informações direto do banco:
-
-- Buscas específicas (por nome de cliente, bicicleta, componente ou ID)
-- Análises de clientes (clientes com mais consignações, maiores valores)
-- Consultas de estoque (itens disponíveis, tempo em estoque)
-- Métricas financeiras e de ticket médio (por categoria, marca, ano, receita mensal)
-
-Essas *queries* servem de base para validação dos dados e criação de métricas avançadas.
-
-## Automação
-
-O arquivo `.github/workflows/sync.yml` configura uma **GitHub Action** que executa o pipeline a cada 2 horas (`cron: '0 */2 * * *'`), além de permitir disparo manual. As credenciais ficam armazenadas como *Secrets* do GitHub, nunca expostas no código.
-
-Antes do pipeline, o workflow roda `test_transform.py`, que exercita os parsers com os formatos reais que já quebraram a base. Depois da carga, `verificar.py` confere se a contagem no banco bate com a planilha e se não há venda sem valor ou sem data, falhando alto em qualquer divergência.
-
-O motivo dessas duas camadas: o pipeline chegou a acumular **1.236 execuções verdes** gravando um valor mil vezes errado — um parser que dividia números em formato pt-BR por mil, numa coluna que misturava dois formatos. Execução verde não é prova de dado certo.
-
-## Segurança
-
-**No repositório**
-
-- Credenciais nunca são commitadas: variáveis de ambiente (`.env`, ignorado via `.gitignore`) em desenvolvimento local e *GitHub Secrets* em produção
-- A conta de serviço usada pelo pipeline tem escopo somente-leitura sobre a planilha
-- Nenhum dado de cliente ou valor de venda está presente aqui — apenas o código e uma base de demonstração fictícia
-
-**No banco** (`sql/views.sql` e `sql/seguranca.sql`, nesta ordem)
-
-- **RLS ligada em todas as tabelas, sem policy.** É a configuração segura neste caso: não existe cenário em que alguém de fora deva ler consignação ou proprietário
-- **Revogação explícita nas views internas.** Esse passo costuma ser esquecido: view em Postgres roda com a permissão de quem a criou, então ligar RLS na tabela **não** protege a view. Sem o revoke, a view de proprietários seria uma porta dos fundos para a tabela protegida. Por isso os grants ficam no fim do próprio `views.sql`: recriar uma view devolve o acesso padrão, e o script que recria é o que fecha. Ele começa revogando tudo de `anon` e `authenticated` e só depois libera o necessário, de modo que view esquecida numa lista não fica aberta por omissão
-- **Objeto novo nasce fechado.** O Supabase libera por padrão tudo que é criado em `public`; o `seguranca.sql` desliga esse padrão, então tabela ou view nova só é lida por fora depois de um grant explícito
-- **Usuário dedicado para o assistente**, cujo papel (`authenticated`) tem `SELECT` nas views e em nenhuma tabela. Se o código tiver um defeito, ou se alguém escrever um comando disfarçado num campo de observação da planilha, o limite é o que o banco permite àquele papel
-
-## Tecnologias
-
-- **Python** — pandas, gspread, google-auth, requests
-- **Google Sheets API** — fonte de dados operacional
-- **Supabase (PostgreSQL)** — banco de dados na nuvem, com RLS e views
-- **Power BI** — camada de visualização, com o modelo lendo das views (DAX, TMDL)
-- **Google Apps Script** — aplicativo de preenchimento e assistente
-- **GitHub Actions** — orquestração e agendamento automático
-- **API da Anthropic / NVIDIA NIM** — modelo do assistente, trocável por configuração
+- **Rodar os testes em todo push e PR**, e não só no agendamento, com lint (`ruff`) no mesmo workflow.
+- **`timeout` em todas as chamadas HTTP** do pipeline, para um endpoint travado não segurar o job até o limite de 6h do Actions.
+- **Falhar cedo quando uma aba vem vazia na extração:** hoje, só a trava de deleção impede o estrago, e os upserts já foram feitos.
+- **Tirar parâmetros de negócio do SQL** (a data de corte e a identificação do estoque próprio) para uma tabela de configuração.
+- **Lista de interesse de clientes:** avisar quem procura "speed, tamanho 54, até R$ 20 mil" quando uma bike compatível entrar.
 
 ---
 
 ## Histórico de versões
 
-### v3.1 — setembro/2026 · Correções de parser e de acesso ao banco
+| Versão | Data | Destaques |
+|---|---|---|
+| **v3.2** | set/2026 | App redesenhado; busca nos seletores; aba Estoque; ficha do proprietário; correção de registros com concorrência otimista e trilha de auditoria; conta conectada visível; 14 testes do app |
+| **v3.1** | set/2026 | Correção de dois bugs de parser (milhar sem centavos, data ISO); view de vendas fechada para a chave pública; grants movidos para o `views.sql`; privilégios padrão fechados |
+| **v3.0** | set/2026 | 7 views com as regras de negócio; Power BI reescrito sobre elas; RLS e papel do assistente; app de preenchimento; assistente com ferramentas; 63 células corrigidas com trilha |
+| **v2.1** | set/2026 | Testes dos parsers e verificação pós-carga; cabeçalho lido por nome; autenticação centralizada |
+| **v2.0** | set/2026 | Reconciliação com o controle paralelo; deleção do que saiu da fonte, com trava; deduplicação por chave; falha de lote interrompe o pipeline |
+| **v1.1–1.4** | ago–set/2026 | Canal de venda padronizado; imputação de data de saída; faixa de datas 2020–2030; `consultas.sql` e diagrama do modelo |
+| **v1.0** | abr/2026 | Pipeline inicial: extração, transformação, carga e agendamento a cada 2h |
 
-- `fmt_valor` lia `12.500` como 12,5 e descartava `R$ 3.200`: ponto só de milhar, sem centavos, era tratado como decimal — a mesma família do bug de escala pt-BR
-- `fmt_date` trocava dia e mês em datas ISO (`2026-03-04` virava 3 de abril), porque o `dayfirst` se aplicava também a `yyyy-mm-dd`
-- Testes para os dois casos, e os primeiros testes de data
-- `vw_vendas_segmento` estava legível pela chave pública: ficou fora da lista de revoke. Os grants passaram para o fim do `views.sql`, fechando tudo antes de abrir o necessário, e objeto novo passou a nascer fechado
-- `seguranca.sql` falhava num banco novo ao revogar uma view que não existe mais no repositório; o papel `agente_leitura`, sem uso desde a troca para login do usuário do agente, é removido
+---
 
-### v3.0 — setembro/2026 · Camada semântica, aplicativo e assistente
-
-- **Sete views** concentrando as regras de negócio, e o Power BI reescrito para ler delas. Motivadas por um defeito em que a mesma regra existia em quatro lugares e um deles divergia
-- **Segurança do banco**: RLS em todas as tabelas, revogação das views internas, usuário dedicado para o assistente e uma view pública sem colunas sensíveis
-- **Aplicativo de preenchimento** em Apps Script, com ID automático, sincronismo de status e domínio fechado nas colunas categóricas
-- **Assistente de dados** com ferramentas parametrizadas sobre as views, em vez de consulta livre
-- **Normalização da fonte**: 63 células corrigidas com trilha de auditoria, incluindo 34 itens cujo status divergia entre abas
-- Base fictícia para a demonstração pública dos dashboards
-
-### v2.1 — setembro/2026 · Testes e verificação pós-carga
-
-- Testes dos parsers com os formatos reais que quebraram a base, rodando antes do pipeline
-- Verificação pós-carga que falha alto em divergência de contagem, valor implausível ou venda incompleta
-- Leitura de cabeçalho por nome em vez de posição, e autenticação centralizada
-
-### v2.0 — setembro/2026 · Auditoria da fonte e correção da carga
-
-Rodada de reconciliação entre a planilha e os controles paralelos da loja, seguida da correção de uma falha silenciosa na etapa de carga.
-
-- A carga era `upsert` puro, então registro apagado na planilha permanecia no banco indefinidamente. O `load.py` passou a remover o que saiu da fonte, com trava de segurança contra exclusão em massa causada por leitura incompleta.
-- Uma chave primária repetida na planilha fazia o PostgreSQL recusar o lote inteiro (`ON CONFLICT DO UPDATE` não pode afetar a mesma linha duas vezes). Como o erro só era impresso e o processo seguia com código de saída zero, as execuções apareciam verdes enquanto os registros mais recentes nunca chegavam ao banco. O `upsert` passou a deduplicar por chave antes de enviar, e falha de lote agora interrompe o pipeline.
-- Proteção para a aba Resumo Mensal vazia, que antes derrubava a execução inteira.
-- Inclusão de `correcoes.csv` e `aplicar_correcoes.py` como registro auditável das correções aplicadas na fonte.
-
-### v1.4 — setembro/2026 · Tratamento de lacunas de preenchimento
-
-- Padronização do canal de venda (`física`, `online`, `on line`, `on-line`, `retirada`)
-- Imputação da data de saída em itens vendidos sem data (entrada + 15 dias), com contagem no resumo da execução
-- Avisos de data fora da faixa e de saída anterior à entrada, identificando ID e campo
-
-### v1.3 — setembro/2026 · Robustez na leitura da planilha
-
-- Faixa de datas válidas ampliada para 2020–2030, substituindo o corte fixo por ano
-- Limpeza de espaços em branco nos cabeçalhos das abas
-- Busca flexível da coluna de valor, tolerando variações no nome do cabeçalho
-
-### v1.2 — agosto/2026 · Correção do corte de datas
-
-- Remoção da trava que descartava qualquer data posterior a abril de 2026, o que vinha apagando entradas recentes de estoque
-
-### v1.1 — agosto/2026 · Camada de consulta e documentação
-
-- `consultas.sql` com queries de negócio, estoque e métricas financeiras
-- Diagrama do modelo relacional
-- Licença MIT
-
-### v1.0 — abril/2026 · Pipeline inicial
-
-- Extração das 5 abas da planilha via Google Sheets API
-- Transformação com padronização de status, datas e valores monetários, e validação de integridade referencial
-- Carga no Supabase via REST API em lotes
-- Agendamento automático no GitHub Actions a cada 2 horas
-
+<sub>Licença MIT.</sub>
