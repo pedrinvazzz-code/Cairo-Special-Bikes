@@ -35,6 +35,7 @@ function novaPlanilha() {
   return {
     abas,
     ss: {
+      getName: () => 'Cairo Bikes (teste)',
       getSheetByName: n => abas[n] ? aba(n) : null,
       insertSheet: n => { abas[n] = []; return aba(n); },
     },
@@ -69,6 +70,11 @@ caso('carregarOpcoes lista registros do mais recente ao mais antigo, com datas I
   const g = carregar(), rs = g.carregarOpcoes().registros;
   igual(rs.map(r => r.id), ['102', '101']);
   igual(rs[1].entrada, '2026-07-01'); igual(rs[1].saida, '2026-09-10'); igual(rs[0].saida, '');
+});
+
+caso('carregarOpcoes diz qual conta está usando o app', () => {
+  const u = carregar().carregarOpcoes().usuario;
+  igual(u.email, 'cairo@loja.com'); igual(u.planilha, 'Cairo Bikes (teste)');
 });
 
 caso('corrige o valor e registra no histórico', () => {

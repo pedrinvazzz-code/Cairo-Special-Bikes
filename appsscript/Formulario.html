@@ -53,7 +53,23 @@
     background: rgba(255,255,255,.86);
     -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px);
   }
-  .topo .dentro { padding: 14px 20px 12px 20px; }
+  .topo .dentro { position: relative; padding: 14px 20px 12px 20px; }
+  /* a conta logada, no canto do cabeçalho */
+  .conta {
+    position: absolute; top: 16px; right: 20px; width: 36px; height: 36px; padding: 0; border-radius: 50%;
+    font: inherit; font-size: 14px; font-weight: 700; color: #8A2E1C; cursor: pointer;
+    background: linear-gradient(145deg, #FFE7DC, #FFC6AD); border: 2px solid var(--papel);
+    box-shadow: 0 0 0 1px var(--linha), 0 4px 12px rgba(255,160,118,.3);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .conta.sem { background: var(--campo); color: var(--fraco); }
+  .conta-email { font-size: 17px; font-weight: 600; word-break: break-all; margin: 0 0 2px 0; text-align: center; }
+  .conta-sub { font-size: 13.5px; color: var(--fraco); text-align: center; margin: 0 0 18px 0; }
+  .conta-dica {
+    display: flex; gap: 10px; margin: 16px 0 0 0; padding: 12px 14px; border-radius: 14px;
+    background: var(--campo); font-size: 13.5px; color: var(--grafite); line-height: 1.45;
+  }
+  .conta-dica svg { flex-shrink: 0; margin-top: 1px; color: var(--fraco); }
   /* O logo tem "CAIRO" em prata e a bike em vermelho, feito para o fundo
      preto do site. No claro o prata some um pouco: o filtro escurece e dá
      contraste sem perder o vermelho. As margens negativas cortam a sobra
@@ -421,11 +437,12 @@
   .detalhe .linha span { color: var(--grafite); }
   .detalhe .linha b { font-weight: 500; text-align: right; }
   .acoes { display: flex; flex-direction: column; gap: 8px; }
-  .acoes button {
+  .acoes button, .acoes a {
     height: 50px; font: inherit; font-size: 15px; font-weight: 600; border: none; border-radius: 999px; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 8px;
   }
   .acoes .primario { background: var(--carbono); color: #FFF; }
+  .acoes a { text-decoration: none; }
   .acoes .secundario { background: var(--campo); color: var(--tinta); }
 
   /* ------------------------------------------------------------ corrigir */
@@ -526,6 +543,9 @@
   <div class="dentro">
     <img src="https://cairospecialbikes.com.br/cdn/shop/files/1_Sem_fundo.png?v=1766172200&width=600"
          alt="Cairo Special Bikes">
+    <button type="button" class="conta sem" id="botaoConta" onclick="abrirConta()" aria-label="Conta conectada">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"></circle><path d="M5 19.5c1.3-3.2 3.9-4.8 7-4.8s5.7 1.6 7 4.8"></path></svg>
+    </button>
     <div class="abas" role="tablist">
       <button id="abaEntrada" role="tab" aria-selected="true" onclick="trocar('entrada')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17"></rect><path d="M12 8v8M8 12h8"></path></svg>Entrada</button>
       <button id="abaSaida"   role="tab" aria-selected="false" onclick="trocar('saida')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12.2V4a1 1 0 0 1 1-1h8.2a1 1 0 0 1 .7.3l7.8 7.8a1 1 0 0 1 0 1.4l-8.2 8.2a1 1 0 0 1-1.4 0l-7.8-7.8a1 1 0 0 1-.3-.7Z"></path><circle cx="7.5" cy="7.5" r="1.5"></circle></svg>Fechar</button>
@@ -866,6 +886,7 @@ function aplicarOpcoes(d) {
 
   el('dataEntrada').value = d.hoje;
   el('dataSaida').value = d.hoje;
+  mostrarConta();
   atualizarRotulos();
   if (ABA === 'estoque') desenharEstoque();
 }
@@ -1341,6 +1362,47 @@ function abrirDetalhe(id) {
       corr.onclick = function () { abrirCorrecao(r.id); };
       acoes.appendChild(corr);
       corpo.appendChild(acoes);
+    }
+  });
+}
+
+// ================================================================ conta
+function mostrarConta() {
+  var u = (OPCOES && OPCOES.usuario) || {}, b = el('botaoConta');
+  if (!u.email) return;
+  b.classList.remove('sem');
+  b.textContent = u.email[0].toUpperCase();
+  b.setAttribute('aria-label', 'Conta conectada: ' + u.email);
+}
+
+function abrirConta() {
+  var u = (OPCOES && OPCOES.usuario) || {};
+  abrirFolha({
+    titulo: 'Sua conta',
+    desenhar: function (corpo) {
+      var topo = criar('div', 'ficha-topo');
+      topo.appendChild(criar('div', 'avatar', u.email ? u.email[0].toUpperCase() : '?'));
+      corpo.appendChild(topo);
+      corpo.appendChild(criar('p', 'conta-email', u.email || 'Conta não identificada'));
+      corpo.appendChild(criar('p', 'conta-sub', u.planilha ? 'Gravando na planilha "' + u.planilha + '"' : 'Ainda carregando a planilha…'));
+
+      var acoes = criar('div', 'acoes');
+      // o seletor de contas do Google, voltando direto para o app. É um link
+      // com target=_top, e não window.open: o app roda num iframe do Google,
+      // e só a navegação da página inteira escapa dele sem ser bloqueada.
+      if (u.url) {
+        var trocar = criar('a', 'primario', 'Trocar de conta');
+        trocar.href = 'https://accounts.google.com/AccountChooser?continue=' + encodeURIComponent(u.url);
+        trocar.target = '_top';
+        acoes.appendChild(trocar);
+      }
+      corpo.appendChild(acoes);
+
+      var dica = criar('div', 'conta-dica');
+      dica.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
+      dica.appendChild(criar('span', '', 'Não é a conta da loja? Com várias contas Google no mesmo navegador, o app pode abrir com a errada. ' +
+        'Troque aqui ou abra o link numa aba anônima com só a conta da loja.'));
+      corpo.appendChild(dica);
     }
   });
 }

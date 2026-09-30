@@ -173,6 +173,18 @@ function valoresUnicos_(aba, nomeColuna) {
 
 // ------------------------------------------------------- o que a tela carrega
 
+/**
+ * Quem está usando o app. Com "executar como o usuário que acessa", é a conta
+ * Google com que o link foi aberto — e no celular, com várias contas logadas,
+ * nem sempre é a que a pessoa acha. Mostrar o e-mail tira a dúvida.
+ */
+function usuario_() {
+  var email = '', url = '';
+  try { email = Session.getActiveUser().getEmail() || ''; } catch (e) {}
+  try { url = ScriptApp.getService().getUrl() || ''; } catch (e) {}
+  return { email: email, planilha: SpreadsheetApp.getActive().getName(), url: url };
+}
+
 function carregarOpcoes() {
   var abaCons = aba_('consignacoes');
   var colsCons = colunas_(abaCons);
@@ -200,6 +212,7 @@ function carregarOpcoes() {
   }
 
   return {
+    usuario: usuario_(),
     donos: donos,
     registros: registros,
     marcas:         valoresUnicos_(aba_('bicicletas'), 'Marca')
