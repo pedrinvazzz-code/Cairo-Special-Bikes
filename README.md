@@ -2,7 +2,14 @@
 
 Plataforma de dados de ponta a ponta para uma loja de consignação de bicicletas: um **aplicativo de campo** que grava na planilha, um **pipeline de ETL** que sincroniza a planilha com um PostgreSQL na nuvem, uma **camada semântica em SQL** que concentra as regras de negócio, **dashboards em Power BI** e um **assistente em linguagem natural** que responde perguntas sobre o negócio sem escrever SQL.
 
-> Projeto de consultoria de dados real, desenvolvido para a Cairo Special Bikes (Uberlândia, MG) e em uso diário pela loja. Nenhum dado de cliente, valor de venda ou credencial está versionado aqui: as capturas de tela usam uma base fictícia gerada por `demo/gerar_dados_demo.py`.
+> Projeto de consultoria de dados real, desenvolvido para a Cairo Special Bikes (Uberlândia, MG). **Em produção desde abril de 2026** e em uso diário pela loja.
+
+> [!IMPORTANT]
+> **Nenhuma imagem deste repositório mostra dados de clientes ou valores reais da loja.**
+> - **Aplicativo:** capturas feitas sobre uma base **100% inventada**: nomes, itens, valores e datas.
+> - **Power BI:** base de demonstração em que **nomes de clientes são fictícios** e **valores em R$ foram alterados** (escala reduzida e ruído por item). Datas e status seguem a estrutura real, sem identificar ninguém, porque são eles que sustentam a análise de qualidade de dados.
+>
+> Nenhum dado de cliente, valor de venda ou credencial está versionado aqui.
 
 ---
 
@@ -131,13 +138,16 @@ Cadastrar uma bicicleta exigia mexer em três abas e digitar dois IDs à mão, e
 - **Ficha do proprietário:** tudo de um dono numa tela, que responde ao dono que liga perguntando "vendeu minha bike?".
 - **Correção de registros com concorrência otimista:** a tela envia o registro como o viu e como quer que fique, e o servidor só grava se a planilha ainda estiver como a pessoa viu. Toda alteração vai para uma aba de histórico, com quem, quando, o valor antes e o depois.
 
+> [!WARNING]
+> **Dados 100% fictícios.** As capturas abaixo foram feitas com o app rodando sobre uma **base simulada, sem nenhum dado da loja**: os nomes de proprietários (como "Eduardo Dias" ou "Larissa Marques"), os itens, os valores e as datas são **inventados** e não correspondem a clientes nem a vendas reais.
+
 <p align="center">
-  <img src="docs/app/estoque.png" width="200" alt="Aba Estoque">
-  <img src="docs/app/ficha_proprietario.png" width="200" alt="Ficha do proprietário">
-  <img src="docs/app/correcao.png" width="200" alt="Correção de registro">
-  <img src="docs/app/busca.png" width="200" alt="Busca de proprietário">
+  <img src="docs/app/estoque.png" width="200" alt="Aba Estoque (dados fictícios)">
+  <img src="docs/app/ficha_proprietario.png" width="200" alt="Ficha do proprietário (dados fictícios)">
+  <img src="docs/app/correcao.png" width="200" alt="Correção de registro (dados fictícios)">
+  <img src="docs/app/busca.png" width="200" alt="Busca de proprietário (dados fictícios)">
 </p>
-<p align="center"><sub>Capturas com dados fictícios.</sub></p>
+<p align="center"><sub><b>Dados fictícios</b> · Estoque · Ficha do proprietário · Correção de registro · Busca</sub></p>
 
 ## O assistente
 
@@ -147,18 +157,31 @@ Uma aba do app responde em português: quanto se vendeu num mês, o que está pa
 
 Quatro páginas (visão geral, financeiro, estoque e segmentação) com o modelo lendo das views.
 
-> *Números e nomes abaixo são fictícios.* A base de demonstração preserva a estrutura real (contagens, distribuições e datas) e substitui nomes, contatos e valores. Os parâmetros dessa substituição não são versionados, e o script recusa rodar sem eles: publicados, tornariam a anonimização reversível.
+> [!WARNING]
+> **Base de demonstração, não os dados da loja.** Os painéis abaixo leem uma base gerada por `demo/gerar_dados_demo.py`:
+> - **Nomes de clientes são fictícios**, com um mapa consistente, para que o ranking de proprietários continue fazendo sentido.
+> - **Valores em R$ foram alterados** (escala reduzida e ruído por item): **nenhum valor abaixo é o faturamento, a meta ou o estoque real** da Cairo Special Bikes.
+> - **Datas, status, marca e categoria seguem a estrutura real.** Não identificam ninguém e são o que sustenta a análise da janela confiável.
+>
+> Os parâmetros da anonimização não são versionados, e o script recusa rodar sem eles: publicados, tornariam a alteração dos valores reversível.
 
-![Visão Geral](docs/Visao_Geral.png)
-![Financeiro](docs/Financeiro.png)
-![Estoque](docs/Estoque.png)
-![Segmentação](docs/Segmentacao_Produtos.png)
+**Visão Geral** <sub>· base de demonstração: nomes fictícios, valores alterados</sub>
+![Visão Geral — base de demonstração](docs/Visao_Geral.png)
+
+**Financeiro** <sub>· base de demonstração: nomes fictícios, valores alterados</sub>
+![Financeiro — base de demonstração](docs/Financeiro.png)
+
+**Estoque** <sub>· base de demonstração: nomes fictícios, valores alterados</sub>
+![Estoque — base de demonstração](docs/Estoque.png)
+
+**Segmentação de produtos** <sub>· base de demonstração: nomes fictícios, valores alterados</sub>
+![Segmentação — base de demonstração](docs/Segmentacao_Produtos.png)
 
 ### Modelo de dados
 
 ![Diagrama do banco](docs/diagrama_banco.png)
 
-`docs/dados_exemplo.xlsx` traz uma planilha com a mesma arquitetura, com nomes e valores embaralhados. `consultas.sql` reúne *queries* de apoio: buscas, clientes, estoque, ticket médio e receita.
+`docs/dados_exemplo.xlsx` traz uma planilha com a mesma arquitetura, com nomes e valores **anonimizados e embaralhados**. `consultas.sql` reúne *queries* de apoio: buscas, clientes, estoque, ticket médio e receita.
 
 ---
 
@@ -214,7 +237,7 @@ appsscript/
 ├── Codigo.gs               → ID automático e sincronismo de status na planilha
 └── teste_formulario.js     → testes do servidor do app
 
-demo/gerar_dados_demo.py    → base fictícia para as capturas
+demo/gerar_dados_demo.py    → base de demonstração do Power BI (nomes fictícios, valores alterados)
 .github/workflows/sync.yml  → testes + pipeline a cada 2h
 ```
 
