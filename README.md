@@ -243,16 +243,6 @@ demo/gerar_dados_demo.py    → base de demonstração do Power BI (nomes fictí
 
 ---
 
-## O que eu faria a seguir
-
-- **Rodar os testes em todo push e PR**, e não só no agendamento, com lint (`ruff`) no mesmo workflow.
-- **`timeout` em todas as chamadas HTTP** do pipeline, para um endpoint travado não segurar o job até o limite de 6h do Actions.
-- **Falhar cedo quando uma aba vem vazia na extração:** hoje, só a trava de deleção impede o estrago, e os upserts já foram feitos.
-- **Tirar parâmetros de negócio do SQL** (a data de corte e a identificação do estoque próprio) para uma tabela de configuração.
-- **Lista de interesse de clientes:** avisar quem procura "speed, tamanho 54, até R$ 20 mil" quando uma bike compatível entrar.
-
----
-
 ## Histórico de versões
 
 | Versão | Data | Destaques |
