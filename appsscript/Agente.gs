@@ -81,7 +81,7 @@ var FERRAMENTAS = [
       'pergunta sobre faturamento, comissão ou desempenho de um período. ' +
       'Cada mês vem com o campo "confiavel": quando for false, os dados daquele ' +
       'mês vêm da migração das planilhas antigas e NÃO descrevem venda real — ' +
-      'avise isso antes de citar o número.',
+      'avise isso antes de citar o número. Quando for true, não comente: é o normal.',
     input_schema: {
       type: 'object',
       properties: {
@@ -214,7 +214,9 @@ var INSTRUCOES =
   'antigas. As datas de saída de lá são marcadores preenchidos em lote: 67% da ' +
   'receita histórica cai em dia 1, 30 ou 31. Servem para saber o que existiu, não ' +
   'para medir faturamento mensal. Quando uma ferramenta devolver confiavel=false, ' +
-  'diga isso antes de citar o número.\n' +
+  'diga isso antes de citar o número. Quando devolver confiavel=true, não diga ' +
+  'nada sobre confiabilidade: é o caso normal, e repetir "dados confiáveis" em ' +
+  'toda resposta faz o aviso de verdade passar despercebido.\n' +
   '- Giro se resume por mediana. Nunca por média.\n' +
   '- Comissão: 12% abaixo de R$ 10 mil, 10% entre R$ 10 e 30 mil, 8% acima de ' +
   'R$ 30 mil. Já vem calculada, não recalcule.\n' +

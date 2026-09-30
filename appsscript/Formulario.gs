@@ -121,6 +121,42 @@ function gravarValor_(aba, linha, col, valor) {
   c.setNumberFormat('R$ #,##0.00');
 }
 
+/** Data da planilha como yyyy-mm-dd, ou '' se vazia ou ilegível. */
+function dataIso_(v) {
+  if (v instanceof Date && !isNaN(v)) {
+    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  var s = String(v).trim(), m;
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return m[0];
+  if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) {
+    return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  }
+  return '';
+}
+
+/**
+ * Uma linha da aba Consignações no formato que a tela usa.
+ *
+ * O mesmo formato serve para listar (aba Estoque) e para conferir, na hora de
+ * gravar uma correção, se a linha ainda é a que a pessoa viu.
+ */
+function registro_(linha, cols) {
+  function v(nome) { return cols[nome] ? linha[cols[nome] - 1] : ''; }
+  return {
+    id:      String(v('ID_Consignação')).trim(),
+    tipo:    String(v('Tipo')).trim(),
+    item:    String(v('Item / Produto')).trim(),
+    dono:    String(v('Proprietário')).trim(),
+    donoId:  String(v('ID_Cliente')).trim(),
+    valor:   Number(v('Valor (R$)')) || 0,
+    status:  String(v('Status')).trim(),
+    entrada: dataIso_(v('Data Entrada')),
+    saida:   dataIso_(v('Data Saída')),
+    loja:    String(v('Loja')).trim(),
+    obs:     String(v('Observações')).trim()
+  };
+}
+
 function valoresUnicos_(aba, nomeColuna) {
   var cols = colunas_(aba);
   if (!cols[nomeColuna]) return [];
@@ -136,6 +172,18 @@ function valoresUnicos_(aba, nomeColuna) {
 
 
 // ------------------------------------------------------- o que a tela carrega
+
+/**
+ * Quem está usando o app. Com "executar como o usuário que acessa", é a conta
+ * Google com que o link foi aberto — e no celular, com várias contas logadas,
+ * nem sempre é a que a pessoa acha. Mostrar o e-mail tira a dúvida.
+ */
+function usuario_() {
+  var email = '', url = '';
+  try { email = Session.getActiveUser().getEmail() || ''; } catch (e) {}
+  try { url = ScriptApp.getService().getUrl() || ''; } catch (e) {}
+  return { email: email, planilha: SpreadsheetApp.getActive().getName(), url: url };
+}
 
 function carregarOpcoes() {
   var abaCons = aba_('consignacoes');
@@ -153,21 +201,20 @@ function carregarOpcoes() {
   }
   donos.sort(function (a, b) { return a.nome.localeCompare(b.nome); });
 
-  var estoque = [];
-  for (var j = 0; j < linhas.length; j++) {
-    if (String(linhas[j][colsCons['Status'] - 1]).trim() !== 'Em estoque') continue;
-    estoque.push({
-      id:    String(linhas[j][colsCons['ID_Consignação'] - 1]).trim(),
-      item:  String(linhas[j][colsCons['Item / Produto'] - 1]).trim(),
-      dono:  String(linhas[j][colsCons['Proprietário'] - 1]).trim(),
-      valor: Number(linhas[j][colsCons['Valor (R$)'] - 1]) || 0
-    });
+  // Todas as consignações, da mais recente para a mais antiga. A tela tira
+  // daqui o estoque (aba Fechar e aba Estoque) e o que pode ser corrigido.
+  // Lido da planilha e não do banco: o banco só sincroniza a cada 2h, e quem
+  // acabou de cadastrar espera ver o item na hora.
+  var registros = [];
+  for (var j = linhas.length - 1; j >= 0; j--) {
+    var r = registro_(linhas[j], colsCons);
+    if (r.id) registros.push(r);
   }
-  estoque.sort(function (a, b) { return a.item.localeCompare(b.item); });
 
   return {
+    usuario: usuario_(),
     donos: donos,
-    estoque: estoque,
+    registros: registros,
     marcas:         valoresUnicos_(aba_('bicicletas'), 'Marca')
                       .concat(valoresUnicos_(aba_('componentes'), 'Marca')).sort(),
     categoriasBike: valoresUnicos_(aba_('bicicletas'), 'Categoria'),
@@ -322,4 +369,175 @@ function propagar_(abaCons, cols, linha, status) {
     var linhaItem = acharLinhaPorId_(abaItem, colsItem[d.colId], idItem);
     if (linhaItem) abaItem.getRange(linhaItem, colsItem['Status']).setValue(status);
   }
+}
+
+
+// ------------------------------------------------------------ correção
+
+var CAMPOS_CORRIGIVEIS = {
+  item:    'Item / Produto',
+  valor:   'Valor (R$)',
+  entrada: 'Data Entrada',
+  saida:   'Data Saída',
+  loja:    'Loja',
+  obs:     'Observações',
+  status:  'Status',
+  donoId:  'ID_Cliente'
+};
+var STATUS_VALIDOS = ['Em estoque', 'Vendido', 'Retirado'];
+var CANAIS_VALIDOS = ['Física', 'Online'];
+
+/**
+ * Corrige uma consignação já gravada.
+ *
+ * Recebe o registro como a pessoa o viu (`antes`) e como ela quer que fique
+ * (`depois`). Antes de gravar, confere campo a campo se a planilha ainda está
+ * como `antes`: se alguém mudou a mesma linha nesse meio-tempo, recusa em vez
+ * de sobrescrever calado.
+ *
+ * Toda alteração vai para a aba "Histórico de correções". A planilha não
+ * guarda versões, e foi a falta de rastro que tornou a auditoria de setembro
+ * tão trabalhosa.
+ */
+function corrigirRegistro(f) {
+  var trava = LockService.getDocumentLock();
+  if (!trava.tryLock(20000)) throw new Error('Planilha ocupada, tente de novo.');
+
+  try {
+    var abaCons = aba_('consignacoes');
+    var cols = colunas_(abaCons);
+    var linha = acharLinhaPorId_(abaCons, cols['ID_Consignação'], f.id);
+    if (!linha) throw new Error('Consignação ' + f.id + ' não encontrada.');
+
+    var valores = abaCons.getRange(linha, 1, 1, abaCons.getLastColumn()).getValues()[0];
+    var atual = registro_(valores, cols);
+
+    var mudancas = [];
+    for (var campo in CAMPOS_CORRIGIVEIS) {
+      if (!(campo in f.depois)) continue;
+      var antes = normalizar_(campo, f.antes[campo]);
+      var depois = normalizar_(campo, f.depois[campo]);
+      if (antes === depois) continue;
+      if (normalizar_(campo, atual[campo]) !== antes) {
+        throw new Error('Este registro foi alterado por outra pessoa enquanto você corrigia. ' +
+                        'Feche e abra de novo para ver a versão atual.');
+      }
+      mudancas.push({ campo: campo, antes: antes, depois: depois });
+    }
+    if (!mudancas.length) return 'Nada mudou.';
+
+    // o estado final, para validar o conjunto e não só cada campo
+    var fim = {};
+    for (var k in atual) fim[k] = normalizar_(k, atual[k]);
+    for (var i = 0; i < mudancas.length; i++) fim[mudancas[i].campo] = mudancas[i].depois;
+
+    // Em estoque não tem saída nem canal; retirada não tem canal. Limpar aqui
+    // evita reabrir um item e deixar a data de saída antiga para trás.
+    if (fim.status === 'Em estoque') { fim.saida = ''; fim.loja = ''; }
+    if (fim.status === 'Retirado') fim.loja = '';
+    acrescentarLimpeza_(mudancas, atual, fim, ['saida', 'loja']);
+
+    if (STATUS_VALIDOS.indexOf(fim.status) < 0) throw new Error('Status inválido: ' + fim.status);
+    if (!fim.item) throw new Error('A descrição não pode ficar vazia.');
+    if (!(Number(fim.valor) > 0)) throw new Error('O valor precisa ser maior que zero.');
+    if (fim.status !== 'Em estoque' && !fim.saida) throw new Error('Falta a data de saída.');
+    if (fim.status === 'Vendido' && CANAIS_VALIDOS.indexOf(fim.loja) < 0) {
+      throw new Error('Falta o canal da venda.');
+    }
+    if (fim.entrada && fim.saida && fim.saida < fim.entrada) {
+      throw new Error('A data de saída ficou antes da data de entrada.');
+    }
+
+    var nomeDono = null;
+    if (fim.donoId !== normalizar_('donoId', atual.donoId)) {
+      var abaProp = aba_('proprietarios');
+      var colsProp = colunas_(abaProp);
+      var lp = acharLinhaPorId_(abaProp, colsProp['ID_Cliente'], fim.donoId);
+      if (!lp) throw new Error('Proprietário ' + fim.donoId + ' não encontrado.');
+      nomeDono = String(abaProp.getRange(lp, colsProp['Nome']).getValue()).trim();
+    }
+
+    // grava
+    for (var m = 0; m < mudancas.length; m++) {
+      var c = mudancas[m], col = cols[CAMPOS_CORRIGIVEIS[c.campo]];
+      if (!col) throw new Error('A coluna ' + CAMPOS_CORRIGIVEIS[c.campo] + ' não existe.');
+      if (c.campo === 'valor') gravarValor_(abaCons, linha, col, c.depois);
+      else if ((c.campo === 'entrada' || c.campo === 'saida') && c.depois) {
+        gravarData_(abaCons, linha, col, c.depois);
+      } else abaCons.getRange(linha, col).setValue(c.depois);
+    }
+    if (nomeDono !== null) {
+      abaCons.getRange(linha, cols['Proprietário']).setValue(nomeDono);
+      mudancas.push({ campo: 'dono', antes: atual.dono, depois: nomeDono });
+    }
+
+    // a descrição e o status vivem também na aba do item
+    for (var n = 0; n < mudancas.length; n++) {
+      if (mudancas[n].campo === 'item') atualizarItem_(abaCons, cols, linha, 'Nome/Descrição', fim.item);
+    }
+    if (fim.status !== atual.status) propagar_(abaCons, cols, linha, fim.status);
+
+    registrarHistorico_(f.id, mudancas);
+    return 'Consignação ' + f.id + ' corrigida (' + mudancas.length +
+           (mudancas.length === 1 ? ' alteração).' : ' alterações).');
+  } finally {
+    trava.releaseLock();
+  }
+}
+
+/** Mesmo valor, mesma forma: sem isto "24900" e 24900 contariam como mudança. */
+function normalizar_(campo, v) {
+  if (v === null || v === undefined) return '';
+  if (campo === 'valor') return String(Number(v) || 0);
+  if (campo === 'entrada' || campo === 'saida') return dataIso_(v);
+  return String(v).trim();
+}
+
+/** Registra como mudança os campos que a regra de status limpou. */
+function acrescentarLimpeza_(mudancas, atual, fim, campos) {
+  for (var i = 0; i < campos.length; i++) {
+    var c = campos[i], antes = normalizar_(c, atual[c]);
+    var ja = mudancas.some(function (m) { return m.campo === c; });
+    if (ja) {
+      mudancas.forEach(function (m) { if (m.campo === c) m.depois = fim[c]; });
+    } else if (antes !== fim[c]) {
+      mudancas.push({ campo: c, antes: antes, depois: fim[c] });
+    }
+  }
+  for (var j = mudancas.length - 1; j >= 0; j--) {
+    if (mudancas[j].antes === mudancas[j].depois) mudancas.splice(j, 1);
+  }
+}
+
+function atualizarItem_(abaCons, cols, linha, coluna, valor) {
+  var destinos = [
+    { colFk: 'ID_Bike',       aba: 'bicicletas',  colId: 'ID_Bike' },
+    { colFk: 'ID_Componente', aba: 'componentes', colId: 'ID_Componente' }
+  ];
+  for (var i = 0; i < destinos.length; i++) {
+    var d = destinos[i];
+    if (!cols[d.colFk]) continue;
+    var idItem = String(abaCons.getRange(linha, cols[d.colFk]).getValue()).trim();
+    if (!idItem) continue;
+    var abaItem = aba_(d.aba);
+    var colsItem = colunas_(abaItem);
+    var linhaItem = acharLinhaPorId_(abaItem, colsItem[d.colId], idItem);
+    if (linhaItem && colsItem[coluna]) abaItem.getRange(linhaItem, colsItem[coluna]).setValue(valor);
+  }
+}
+
+function registrarHistorico_(idCons, mudancas) {
+  var ss = SpreadsheetApp.getActive();
+  var aba = ss.getSheetByName('Histórico de correções');
+  if (!aba) {
+    aba = ss.insertSheet('Histórico de correções');
+    aba.appendRow(['Quando', 'Quem', 'ID_Consignação', 'Campo', 'Antes', 'Depois']);
+    aba.setFrozenRows(1);
+  }
+  var quem = Session.getActiveUser().getEmail() || '';
+  var agora = new Date();
+  var linhas = mudancas.map(function (m) {
+    return [agora, quem, idCons, m.campo, m.antes, m.depois];
+  });
+  aba.getRange(aba.getLastRow() + 1, 1, linhas.length, 6).setValues(linhas);
 }
