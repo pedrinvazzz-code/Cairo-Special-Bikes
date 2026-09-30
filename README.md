@@ -2,7 +2,7 @@
 
 Plataforma de dados de ponta a ponta para uma loja de consignação de bicicletas: um **aplicativo de campo** que grava na planilha, um **pipeline de ETL** que sincroniza a planilha com um PostgreSQL na nuvem, uma **camada semântica em SQL** que concentra as regras de negócio, **dashboards em Power BI** e um **assistente em linguagem natural** que responde perguntas sobre o negócio sem escrever SQL.
 
-> Projeto de consultoria de dados real, desenvolvido para a Cairo Special Bikes (Uberlândia, MG) e em uso diário pela loja.
+> Projeto de consultoria de dados real, desenvolvido para a Cairo Special Bikes (Uberlândia, MG). **Em produção desde abril de 2026** e em uso diário pela loja.
 
 > [!IMPORTANT]
 > **Nenhuma imagem deste repositório mostra dados de clientes ou valores reais da loja.**
