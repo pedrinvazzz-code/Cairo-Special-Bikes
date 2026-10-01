@@ -50,9 +50,15 @@ function doGet() {
                     'Formulario', 'Formulário', 'formulario', 'Form'];
   for (var i = 0; i < candidatos.length; i++) {
     try {
+      // Ícone e título usados quando o app é adicionado à tela inicial do
+      // celular: o mesmo ícone do site da loja.
       return HtmlService.createHtmlOutputFromFile(candidatos[i])
         .setTitle('Cairo Special Bikes')
-        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+        .setFaviconUrl('https://cairospecialbikes.com.br/cdn/shop/files/2_Sem_fundo.png?crop=center&height=192&v=1766172221&width=192')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+        .addMetaTag('apple-mobile-web-app-capable', 'yes')
+        .addMetaTag('mobile-web-app-capable', 'yes')
+        .addMetaTag('apple-mobile-web-app-title', 'Cairo');
     } catch (e) {
       // não existe com esse nome, tenta o próximo
     }
@@ -213,6 +219,8 @@ function carregarOpcoes() {
 
   return {
     usuario: usuario_(),
+    agora: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm"),
+    conferencias: conferencias_(),
     donos: donos,
     registros: registros,
     marcas:         valoresUnicos_(aba_('bicicletas'), 'Marca')
@@ -302,8 +310,11 @@ function registrarEntrada(f) {
       abaCons.getRange(linhaCons, colsCons['Observações']).setValue(f.observacoes);
     }
 
-    return 'Registrado. Consignação ' + idCons + ', ' +
-           (ehBike ? 'bike' : 'componente') + ' ' + idItem + '.';
+    // Os IDs voltam para a tela poder oferecer "Desfazer" (desfazerEntrada).
+    return {
+      msg: 'Registrado. Consignação ' + idCons + ', ' + (ehBike ? 'bike' : 'componente') + ' ' + idItem + '.',
+      id: idCons, idItem: idItem, bike: ehBike, idCliente: String(idCliente), donoNovo: !f.donoId
+    };
   } finally {
     trava.releaseLock();
   }
@@ -540,4 +551,115 @@ function registrarHistorico_(idCons, mudancas) {
     return [agora, quem, idCons, m.campo, m.antes, m.depois];
   });
   aba.getRange(aba.getLastRow() + 1, 1, linhas.length, 6).setValues(linhas);
+}
+
+
+// ------------------------------------------------------- desfazer e conferir
+
+/**
+ * Desfaz uma entrada recém-registrada: apaga a consignação, o item e, se o
+ * dono foi cadastrado nessa mesma entrada e não tem mais nada, o dono.
+ *
+ * Só apaga se a consignação ainda estiver exatamente como foi criada (Em
+ * estoque, apontando para o mesmo item). Se alguém já fechou ou mexeu, recusa:
+ * aí o caminho é a correção, que deixa rastro campo a campo.
+ */
+function desfazerEntrada(f) {
+  var trava = LockService.getDocumentLock();
+  if (!trava.tryLock(20000)) throw new Error('Planilha ocupada, tente de novo.');
+  try {
+    var abaCons = aba_('consignacoes'), cols = colunas_(abaCons);
+    var linha = acharLinhaPorId_(abaCons, cols['ID_Consignação'], f.id);
+    if (!linha) throw new Error('Consignação ' + f.id + ' não encontrada.');
+    var r = registro_(abaCons.getRange(linha, 1, 1, abaCons.getLastColumn()).getValues()[0], cols);
+    var colFk = f.bike ? 'ID_Bike' : 'ID_Componente';
+    var idItemNaLinha = String(abaCons.getRange(linha, cols[colFk]).getValue()).trim();
+    if (r.status !== 'Em estoque' || idItemNaLinha !== String(f.idItem)) {
+      throw new Error('A consignação ' + f.id + ' já mudou desde a entrada. Use "Corrigir registro".');
+    }
+
+    abaCons.deleteRow(linha);
+
+    var abaItem = aba_(f.bike ? 'bicicletas' : 'componentes'), colsItem = colunas_(abaItem);
+    var linhaItem = acharLinhaPorId_(abaItem, colsItem[f.bike ? 'ID_Bike' : 'ID_Componente'], f.idItem);
+    if (linhaItem) abaItem.deleteRow(linhaItem);
+
+    var donoApagado = false;
+    if (f.donoNovo) {
+      var outras = dados_(abaCons).some(function (l) {
+        return String(l[cols['ID_Cliente'] - 1]).trim() === String(f.idCliente);
+      });
+      if (!outras) {
+        var abaProp = aba_('proprietarios'), colsProp = colunas_(abaProp);
+        var lp = acharLinhaPorId_(abaProp, colsProp['ID_Cliente'], f.idCliente);
+        if (lp) { abaProp.deleteRow(lp); donoApagado = true; }
+      }
+    }
+
+    registrarHistorico_(f.id, [{ campo: 'entrada desfeita', antes: r.item + ' · ' + r.dono, depois: '' }]);
+    return 'Entrada desfeita: consignação ' + f.id + ' removida' + (donoApagado ? ', com o proprietário novo.' : '.');
+  } finally {
+    trava.releaseLock();
+  }
+}
+
+/**
+ * Desfaz um fechamento recém-registrado: volta a Em estoque e restaura o
+ * valor e as observações que a tela guardou de antes da saída.
+ */
+function desfazerSaida(f) {
+  var trava = LockService.getDocumentLock();
+  if (!trava.tryLock(20000)) throw new Error('Planilha ocupada, tente de novo.');
+  try {
+    var abaCons = aba_('consignacoes'), cols = colunas_(abaCons);
+    var linha = acharLinhaPorId_(abaCons, cols['ID_Consignação'], f.id);
+    if (!linha) throw new Error('Consignação ' + f.id + ' não encontrada.');
+    var r = registro_(abaCons.getRange(linha, 1, 1, abaCons.getLastColumn()).getValues()[0], cols);
+    if (r.status !== f.status) {
+      throw new Error('A consignação ' + f.id + ' já não está como "' + f.status + '". Use "Corrigir registro".');
+    }
+
+    abaCons.getRange(linha, cols['Status']).setValue('Em estoque');
+    abaCons.getRange(linha, cols['Data Saída']).setValue('');
+    abaCons.getRange(linha, cols['Loja']).setValue('');
+    if (f.valor) gravarValor_(abaCons, linha, cols['Valor (R$)'], f.valor);
+    if (cols['Observações']) abaCons.getRange(linha, cols['Observações']).setValue(f.obs || '');
+    propagar_(abaCons, cols, linha, 'Em estoque');
+
+    registrarHistorico_(f.id, [
+      { campo: 'saída desfeita', antes: r.status + ' em ' + r.saida, depois: 'Em estoque' }
+    ]);
+    return 'Fechamento desfeito: a consignação ' + f.id + ' voltou para o estoque.';
+  } finally {
+    trava.releaseLock();
+  }
+}
+
+/**
+ * "Ainda está na loja": a revisão dos parados confirma que o item existe sem
+ * mudar a consignação. Fica só no histórico, que a tela lê de volta para não
+ * pedir a mesma conferência todo dia.
+ */
+function registrarConferencia(id) {
+  var abaCons = aba_('consignacoes'), cols = colunas_(abaCons);
+  var linha = acharLinhaPorId_(abaCons, cols['ID_Consignação'], id);
+  if (!linha) throw new Error('Consignação ' + id + ' não encontrada.');
+  var status = String(abaCons.getRange(linha, cols['Status']).getValue()).trim();
+  if (status !== 'Em estoque') throw new Error('A consignação ' + id + ' não está em estoque.');
+  registrarHistorico_(String(id), [{ campo: 'conferência', antes: '', depois: 'ainda na loja' }]);
+  return 'Conferido.';
+}
+
+/** id da consignação -> data (yyyy-mm-dd) da última conferência. */
+function conferencias_() {
+  var aba = SpreadsheetApp.getActive().getSheetByName('Histórico de correções');
+  var mapa = {};
+  if (!aba || aba.getLastRow() < 2) return mapa;
+  var linhas = aba.getRange(2, 1, aba.getLastRow() - 1, 4).getValues();
+  for (var i = 0; i < linhas.length; i++) {
+    if (String(linhas[i][3]).trim() !== 'conferência') continue;
+    var id = String(linhas[i][2]).trim(), quando = dataIso_(linhas[i][0]);
+    if (quando && (!mapa[id] || quando > mapa[id])) mapa[id] = quando;
+  }
+  return mapa;
 }

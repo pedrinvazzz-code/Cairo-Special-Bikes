@@ -29,6 +29,7 @@ function novaPlanilha() {
         };
       },
       appendRow(row) { m.push(row); },
+      deleteRow(r) { m.splice(r - 1, 1); },
       setFrozenRows() {},
     };
   }
@@ -51,7 +52,7 @@ function carregar() {
     Utilities: { formatDate: (d) => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') },
     HtmlService: {},
   };
-  const f = new Function(...Object.keys(ctx), codigo + '\nreturn { carregarOpcoes, corrigirRegistro };');
+  const f = new Function(...Object.keys(ctx), codigo + '\nreturn { carregarOpcoes, corrigirRegistro, registrarEntrada, registrarSaida, desfazerEntrada, desfazerSaida, registrarConferencia };');
   return Object.assign(f(...Object.values(ctx)), { abas: p.abas });
 }
 
@@ -159,6 +160,67 @@ caso('Vendido para Retirado limpa o canal', () => {
   const l = g.abas['Consignações'][1];
   igual([l[9], l[8]], ['Retirado', '']);
   igual(g.abas['Bicicletas'][1][2], 'Retirado');
+});
+
+const ENTRADA = { tipo: 'Bicicleta', descricao: 'Cervélo S5', valor: '26400', dataEntrada: '2026-09-30' };
+
+caso('entrada devolve os IDs criados para poder desfazer', () => {
+  const g = carregar();
+  const r = g.registrarEntrada(Object.assign({ donoNovo: 'Gabriela Nunes' }, ENTRADA));
+  igual([r.id, r.idItem, r.bike, r.idCliente, r.donoNovo], ['103', '13', true, '4', true]);
+  igual(g.abas['Consignações'].length, 4);
+});
+
+caso('desfazer entrada apaga consignação, item e o dono criado junto', () => {
+  const g = carregar();
+  const r = g.registrarEntrada(Object.assign({ donoNovo: 'Gabriela Nunes' }, ENTRADA));
+  g.desfazerEntrada(r);
+  igual(g.abas['Consignações'].length, 3);
+  igual(g.abas['Bicicletas'].map(l => l[0]), ['ID_Bike', 11, 12]);
+  igual(g.abas['Proprietários'].map(l => l[1]), ['Nome', 'Beatriz Almeida', 'Caio Barbosa', 'Daniela Carvalho']);
+  igual(g.abas['Histórico de correções'][1][3], 'entrada desfeita');
+});
+
+caso('desfazer entrada de dono existente não apaga o dono', () => {
+  const g = carregar();
+  const r = g.registrarEntrada(Object.assign({ donoId: '3' }, ENTRADA));
+  g.desfazerEntrada(r);
+  igual(g.abas['Proprietários'].length, 4);
+});
+
+caso('desfazer entrada recusa se o item já foi fechado', () => {
+  const g = carregar();
+  const r = g.registrarEntrada(Object.assign({ donoId: '3' }, ENTRADA));
+  g.registrarSaida({ idCons: r.id, status: 'Vendido', canal: 'Física', dataSaida: '2026-09-30' });
+  falha(() => g.desfazerEntrada(r), 'já mudou');
+  igual(g.abas['Consignações'].length, 4);
+});
+
+caso('desfazer saída volta ao estoque e restaura valor e observação', () => {
+  const g = carregar();
+  g.registrarSaida({ idCons: '102', status: 'Vendido', canal: 'Online', valor: '29000', dataSaida: '2026-09-30', observacoes: 'pix' });
+  g.desfazerSaida({ id: '102', status: 'Vendido', valor: 31500, obs: 'risco no quadro' });
+  const l = g.abas['Consignações'][2];
+  igual([l[9], l[8], l[11], l[7], l[12]], ['Em estoque', '', '', 31500, 'risco no quadro']);
+  igual(g.abas['Bicicletas'][2][2], 'Em estoque');
+});
+
+caso('desfazer saída recusa se o status já é outro', () => {
+  const g = carregar();
+  falha(() => g.desfazerSaida({ id: '101', status: 'Retirado', valor: 1, obs: '' }), 'já não está');
+});
+
+caso('conferência fica no histórico e volta no carregarOpcoes', () => {
+  const g = carregar();
+  g.registrarConferencia('102');
+  const hoje = new Date(), iso = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-' + String(hoje.getDate()).padStart(2,'0');
+  igual(g.carregarOpcoes().conferencias, { '102': iso });
+  igual(g.abas['Consignações'][2][9], 'Em estoque');
+});
+
+caso('conferência só vale para item em estoque', () => {
+  const g = carregar();
+  falha(() => g.registrarConferencia('101'), 'não está em estoque');
 });
 
 console.log(falhas ? '\n❌ ' + falhas + ' falha(s)' : '\n✅ todos passaram');
