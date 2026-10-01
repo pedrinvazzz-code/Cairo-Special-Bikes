@@ -151,7 +151,11 @@ Cadastrar uma bicicleta exigia mexer em três abas e digitar dois IDs à mão, e
   <img src="docs/app/correcao.png" width="200" alt="Correção de registro (dados fictícios)">
   <img src="docs/app/busca.png" width="200" alt="Busca de proprietário (dados fictícios)">
 </p>
-<p align="center"><sub><b>Dados fictícios</b> · Estoque · Ficha do proprietário · Correção de registro · Busca</sub></p>
+<p align="center">
+  <img src="docs/app/revisao_parados.png" width="200" alt="Revisão dos parados (dados fictícios)">
+  <img src="docs/app/estoque_escuro.png" width="200" alt="Estoque no modo escuro (dados fictícios)">
+</p>
+<p align="center"><sub><b>Dados fictícios</b> · Estoque · Ficha do proprietário · Correção de registro · Busca · Revisão dos parados · Modo escuro</sub></p>
 
 ## O assistente
 
