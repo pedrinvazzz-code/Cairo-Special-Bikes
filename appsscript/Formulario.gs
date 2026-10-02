@@ -243,7 +243,16 @@ function usuario_() {
   var email = '', url = '';
   try { email = Session.getActiveUser().getEmail() || ''; } catch (e) {}
   try { url = ScriptApp.getService().getUrl() || ''; } catch (e) {}
-  return { email: email, planilha: SpreadsheetApp.getActive().getName(), url: url };
+  var tema = '';
+  try { tema = PropertiesService.getUserProperties().getProperty('tema') || ''; } catch (e) {}
+  return { email: email, planilha: SpreadsheetApp.getActive().getName(), url: url, tema: tema };
+}
+
+/** Claro ou escuro, guardado na conta de quem usa (vale em qualquer aparelho). */
+function salvarTema(t) {
+  if (t !== 'claro' && t !== 'escuro') throw new Error('Tema inválido.');
+  PropertiesService.getUserProperties().setProperty('tema', t);
+  return t;
 }
 
 function carregarOpcoes() {

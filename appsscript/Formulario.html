@@ -6,6 +6,25 @@
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141416" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
+<script>
+/* Tema antes da primeira pintura, para não piscar claro e virar escuro.
+   Escolha salva no aparelho; sem escolha, segue o tema do celular. */
+var TEMA_SALVO = null;
+try { TEMA_SALVO = localStorage.getItem('tema'); } catch (e) {}
+function temaDoSistema() { return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro'; }
+function aplicarTema(t) {
+  document.documentElement.classList.toggle('escuro', t === 'escuro');
+  document.documentElement.style.colorScheme = t === 'escuro' ? 'dark' : 'light';
+  var metas = document.querySelectorAll('meta[name="theme-color"]');
+  for (var i = 0; i < metas.length; i++) { metas[i].removeAttribute('media'); metas[i].content = t === 'escuro' ? '#141416' : '#FFFFFF'; }
+}
+aplicarTema(TEMA_SALVO || temaDoSistema());
+if (window.matchMedia) {
+  var mqTema = matchMedia('(prefers-color-scheme: dark)');
+  var seguirSistema = function () { if (!TEMA_SALVO) aplicarTema(temaDoSistema()); };
+  if (mqTema.addEventListener) mqTema.addEventListener('change', seguirSistema); else if (mqTema.addListener) mqTema.addListener(seguirSistema);
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -74,6 +93,15 @@
     display: flex; align-items: center; justify-content: center;
   }
   .conta.sem { background: var(--campo); color: var(--fraco); }
+  /* alternar claro/escuro, espelhando o botão da conta do outro lado */
+  .tema {
+    position: absolute; top: 16px; left: 20px; width: 36px; height: 36px; padding: 0; border-radius: 50%;
+    border: none; cursor: pointer; color: var(--tinta); background: var(--campo);
+    box-shadow: 0 0 0 1px var(--linha); display: flex; align-items: center; justify-content: center;
+  }
+  .tema .sol { display: none; }
+  html.escuro .tema .sol { display: block; }
+  html.escuro .tema .lua { display: none; }
   .conta-email { font-size: 17px; font-weight: 600; word-break: break-all; margin: 0 0 2px 0; text-align: center; }
   .conta-sub { font-size: 13.5px; color: var(--fraco); text-align: center; margin: 0 0 18px 0; }
   .conta-dica {
@@ -106,8 +134,9 @@
   .abas button svg { flex-shrink: 0; }
   /* em tela estreita, só a aba ativa mostra o ícone: com quatro abas não cabe tudo */
   @media (max-width: 400px) { .abas button svg { display: none; } }
+  @media (max-width: 360px) { .abas button { font-size: 12px; padding: 0 2px; } }
 
-  main { position: relative; z-index: 1; padding: 0 20px 120px 20px; }
+  main { position: relative; z-index: 1; padding: 0 20px 120px 20px; overflow-x: hidden; overflow-x: clip; }
 
   /* ---------------------------------------------------------- seções */
   .secao { margin-top: 28px; }
@@ -350,7 +379,8 @@
     background: none; border: none; border-bottom: 1px solid var(--linha); cursor: pointer; color: var(--tinta);
   }
   .opcao:last-child { border-bottom: none; }
-  .opcao .txt { flex: 1; min-width: 0; }
+  .opcao { overflow: hidden; max-width: 100%; }
+  .opcao .txt { flex: 1 1 0%; min-width: 0; overflow: hidden; }
   .opcao .txt b { display: block; font-weight: 500; font-size: 15.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .opcao .txt small { display: block; color: var(--fraco); font-size: 13px; }
   mark { background: #FFE3D6; color: inherit; border-radius: 3px; padding: 0 1px; }
@@ -420,17 +450,23 @@
   .buscaLista svg { position: absolute; left: 14px; top: 15px; color: var(--fraco); }
 
   .lista { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  /* Cartão é um <button>. No Safari, botão não encolhe o conteúdo como uma
+     div: o título longo não cortava, passava da borda e alargava a página
+     inteira. Bloco + overflow hidden + linhas com min-width 0 resolvem nos dois. */
   .reg {
-    width: 100%; padding: 13px 14px; font: inherit; text-align: left; cursor: pointer; color: var(--tinta);
+    display: block; width: 100%; max-width: 100%; min-width: 0; overflow: hidden;
+    padding: 13px 14px; font: inherit; text-align: left; cursor: pointer; color: var(--tinta);
     background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; box-shadow: var(--sombra);
-    display: flex; flex-direction: column; gap: 3px; transition: transform .1s;
+    transition: transform .1s;
   }
+  .reg .l1, .reg .l2 { width: 100%; min-width: 0; }
+  .reg .l2 { margin-top: 3px; }
   .reg:active { transform: scale(.99); }
   .reg .l1 { display: flex; align-items: baseline; gap: 10px; }
-  .reg .l1 b { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .reg .l1 span { font-weight: 600; font-size: 14.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .reg .l1 b { display: block; flex: 1 1 0%; min-width: 0; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .reg .l1 span { flex-shrink: 0; font-weight: 600; font-size: 14.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .reg .l2 { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fraco); }
-  .reg .l2 .dono { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .reg .l2 .dono { display: block; flex: 1 1 0%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .selo-dias {
     flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px;
     border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--campo); color: var(--grafite);
@@ -471,9 +507,10 @@
   /* ---------------------------------------------------------------- toast */
   .toast {
     position: fixed; left: 50%; bottom: 96px; z-index: 60; transform: translate(-50%, 20px);
-    padding: 12px 18px; border-radius: 999px; background: var(--carbono); color: var(--sobre-carbono); font-size: 14.5px; font-weight: 500;
+    padding: 12px 18px; border-radius: 20px; background: var(--carbono); color: var(--sobre-carbono); font-size: 14.5px; font-weight: 500;
     box-shadow: 0 10px 30px rgba(28,28,30,.25); opacity: 0; pointer-events: none;
-    transition: opacity .2s, transform .25s; display: flex; align-items: center; gap: 8px; white-space: nowrap;
+    transition: opacity .2s, transform .25s; display: flex; align-items: center; gap: 8px;
+    width: max-content; max-width: calc(100vw - 32px); text-align: center; line-height: 1.35;
   }
   .toast.visivel { opacity: 1; transform: translate(-50%, 0); }
 
@@ -633,8 +670,10 @@
   /* Segue o tema do celular. Superfícies vão para o carvão; botões e o balão
      do usuário invertem (claros com texto escuro), como no estilo de
      referência; o cartão do estoque continua escuro e ganha uma borda. */
-  @media (prefers-color-scheme: dark) {
-    :root {
+  /* Classe "escuro" no <html>: posta pelo script do <head> conforme o tema do
+     celular ou a escolha feita no botão do cabeçalho. Antes era só
+     @media (prefers-color-scheme), que não deixava escolher. */
+  html.escuro {
       --carbono:  #F2F2F4;  --sobre-carbono: #141416;
       --tinta:    #F2F2F4;  --grafite: #A3A3AA;  --fraco: #7E7E86;
       --campo:    #1F1F23;  --campo2:  #2A2A30;  --linha: #2C2C32;
@@ -646,30 +685,29 @@
       --erro-bg:  #3A1518;  --erro-tx: #FFB4B8;
       --sombra:   0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.25);
     }
-    body::before {
+  html.escuro body::before {
       background: radial-gradient(120% 70% at 50% 115%,
                   rgba(255,140,95,.22) 0%, rgba(255,140,95,.08) 40%, rgba(20,20,22,0) 72%);
     }
-    /* o logo foi feito para fundo escuro: no escuro, sem o filtro */
+  html.escuro /* o logo foi feito para fundo escuro: no escuro, html.escuro sem o filtro */
     .topo img { filter: none; }
-    .heroi { border: 1px solid #2C2C32; }
-    input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(255,255,255,.06); }
-    .abas button[aria-selected="true"] { background: #2E2E35; }
-    /* campos e botões secundários dentro das folhas: um tom acima do fundo delas */
+  html.escuro .heroi { border: 1px solid #2C2C32; }
+  html.escuro input:focus, html.escuro select:focus, html.escuro textarea:focus { box-shadow: 0 0 0 4px rgba(255,255,255,.06); }
+  html.escuro .abas button[aria-selected="true"] { background: #2E2E35; }
+  html.escuro /* campos e botões secundários dentro das folhas: um tom acima do fundo delas */
     .folha { --campo: #27272D; --campo2: #303037; }
-    .selo { box-shadow: 0 0 0 10px rgba(255,184,150,.10), 0 10px 30px rgba(0,0,0,.4); }
-    /* ícones embutidos como imagem: inverte para aparecerem no escuro */
-    .campoBusca::after, .sugestoes button::after { filter: invert(1); }
-    .tiles button[aria-pressed="true"]::after { background-color: var(--vermelho); }
-    mark { background: rgba(255,160,118,.28); }
-    .selo-dias.atencao { background: #3A2A10; color: #F5C46B; }
-    .selo-dias.critico { background: #3A1518; color: #FF9AA1; }
-    .selo-dias.vendido { background: #12301F; color: #6FD6A0; }
-    .ficha-topo .arte { color: #3A2D28; }
-    .esq::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); }
-    .veu { background: rgba(0,0,0,.55); }
-    .avatar { box-shadow: 0 0 0 6px rgba(255,198,173,.12), 0 8px 22px rgba(0,0,0,.4); }
-  }
+  html.escuro .selo { box-shadow: 0 0 0 10px rgba(255,184,150,.10), 0 10px 30px rgba(0,0,0,.4); }
+  html.escuro /* ícones embutidos como imagem: inverte para aparecerem no escuro */
+    .campoBusca::after, html.escuro .sugestoes button::after { filter: invert(1); }
+  html.escuro .tiles button[aria-pressed="true"]::after { background-color: var(--vermelho); }
+  html.escuro mark { background: rgba(255,160,118,.28); }
+  html.escuro .selo-dias.atencao { background: #3A2A10; color: #F5C46B; }
+  html.escuro .selo-dias.critico { background: #3A1518; color: #FF9AA1; }
+  html.escuro .selo-dias.vendido { background: #12301F; color: #6FD6A0; }
+  html.escuro .ficha-topo .arte { color: #3A2D28; }
+  html.escuro .esq::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); }
+  html.escuro .veu { background: rgba(0,0,0,.55); }
+  html.escuro .avatar { box-shadow: 0 0 0 6px rgba(255,198,173,.12), 0 8px 22px rgba(0,0,0,.4); }
   @media (prefers-reduced-motion: reduce) { .entrar, .rev-cartao { animation: none; } }
 </style>
 </head>
@@ -679,6 +717,10 @@
   <div class="dentro">
     <img src="https://cairospecialbikes.com.br/cdn/shop/files/1_Sem_fundo.png?v=1766172200&width=600"
          alt="Cairo Special Bikes">
+    <button type="button" class="tema" id="botaoTema" onclick="alternarTema()" aria-label="Alternar modo claro e escuro">
+      <svg class="lua" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"></path></svg>
+      <svg class="sol" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"></path></svg>
+    </button>
     <button type="button" class="conta sem" id="botaoConta" onclick="abrirConta()" aria-label="Conta conectada">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"></circle><path d="M5 19.5c1.3-3.2 3.9-4.8 7-4.8s5.7 1.6 7 4.8"></path></svg>
     </button>
@@ -1225,7 +1267,8 @@ function registro(id) {
 var tempoToast;
 function aviso(txt) {
   var t = el('toast');
-  t.textContent = txt; t.classList.add('visivel');
+  // "Exception: ..." é o jeito do Apps Script embrulhar o erro; o Cairo só precisa do texto
+  t.textContent = String(txt).replace(/(^|: )Exception: /g, '$1'); t.classList.add('visivel');
   clearTimeout(tempoToast);
   tempoToast = setTimeout(function () { t.classList.remove('visivel'); }, 2600);
 }
@@ -1803,9 +1846,22 @@ function desfazer() {
   else google.script.run.withSuccessHandler(ok).withFailureHandler(falhou).desfazerSaida(d.dados);
 }
 
+// ================================================================= tema
+function alternarTema() {
+  var t = document.documentElement.classList.contains('escuro') ? 'claro' : 'escuro';
+  TEMA_SALVO = t;
+  aplicarTema(t);
+  try { localStorage.setItem('tema', t); } catch (e) {}
+  // também na conta Google: o armazenamento do navegador pode ser apagado
+  // (o Safari limpa dados de sites em iframe com frequência)
+  try { google.script.run.salvarTema(t); } catch (e) {}
+}
+
 // ================================================================ conta
 function mostrarConta() {
   var u = (OPCOES && OPCOES.usuario) || {}, b = el('botaoConta');
+  // tema escolhido em outro aparelho, quando este não tem escolha própria
+  if (u.tema && !TEMA_SALVO) { TEMA_SALVO = u.tema; aplicarTema(u.tema); try { localStorage.setItem('tema', u.tema); } catch (e) {} }
   if (!u.email) return;
   b.classList.remove('sem');
   b.textContent = u.email[0].toUpperCase();
