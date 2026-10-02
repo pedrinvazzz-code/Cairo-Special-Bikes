@@ -11,7 +11,7 @@ function novaPlanilha() {
     ],
     'Bicicletas': [['ID_Bike','Nome/Descrição','Status'], [11,'Tarmac SL7','Vendido'], [12,'Trek Madone','Em estoque']],
     'Componentes': [['ID_Componente','Nome/Descrição','Status']],
-    'Proprietários': [['ID_Cliente','Nome'], [1,'Beatriz Almeida'], [2,'Caio Barbosa'], [3,'Daniela Carvalho']],
+    'Proprietários': [['ID_Cliente','Nome','Contato'], [1,'Beatriz Almeida',''], [2,'Caio Barbosa',''], [3,'Daniela Carvalho','']],
   };
   const formatos = {};
   function aba(nome) {
@@ -29,6 +29,7 @@ function novaPlanilha() {
         };
       },
       appendRow(row) { m.push(row); },
+      deleteRow(r) { m.splice(r - 1, 1); },
       setFrozenRows() {},
     };
   }
@@ -51,7 +52,7 @@ function carregar() {
     Utilities: { formatDate: (d) => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') },
     HtmlService: {},
   };
-  const f = new Function(...Object.keys(ctx), codigo + '\nreturn { carregarOpcoes, corrigirRegistro };');
+  const f = new Function(...Object.keys(ctx), codigo + '\nreturn { carregarOpcoes, corrigirRegistro, registrarEntrada, registrarSaida, desfazerEntrada, desfazerSaida, registrarConferencia };');
   return Object.assign(f(...Object.values(ctx)), { abas: p.abas });
 }
 
@@ -130,7 +131,7 @@ caso('saída antes da entrada é recusada', () => {
 
 caso('valor zero é recusado', () => {
   const g = carregar(), a = reg(g, 102);
-  falha(() => g.corrigirRegistro({ id: '102', antes: a, depois: Object.assign({}, a, { valor: '0' }) }), 'maior que zero');
+  falha(() => g.corrigirRegistro({ id: '102', antes: a, depois: Object.assign({}, a, { valor: '0' }) }), 'entre R$ 10');
 });
 
 caso('trocar o dono grava ID_Cliente e o nome em Proprietário', () => {
@@ -159,6 +160,142 @@ caso('Vendido para Retirado limpa o canal', () => {
   const l = g.abas['Consignações'][1];
   igual([l[9], l[8]], ['Retirado', '']);
   igual(g.abas['Bicicletas'][1][2], 'Retirado');
+});
+
+const ENTRADA = { tipo: 'Bicicleta', descricao: 'Cervélo S5', valor: '26400', dataEntrada: '2026-09-30' };
+
+caso('entrada devolve os IDs criados para poder desfazer', () => {
+  const g = carregar();
+  const r = g.registrarEntrada(Object.assign({ donoNovo: 'Gabriela Nunes' }, ENTRADA));
+  igual([r.id, r.idItem, r.bike, r.idCliente, r.donoNovo], ['103', '13', true, '4', true]);
+  igual(g.abas['Consignações'].length, 4);
+});
+
+caso('desfazer entrada apaga consignação, item e o dono criado junto', () => {
+  const g = carregar();
+  const r = g.registrarEntrada(Object.assign({ donoNovo: 'Gabriela Nunes' }, ENTRADA));
+  g.desfazerEntrada(r);
+  igual(g.abas['Consignações'].length, 3);
+  igual(g.abas['Bicicletas'].map(l => l[0]), ['ID_Bike', 11, 12]);
+  igual(g.abas['Proprietários'].map(l => l[1]), ['Nome', 'Beatriz Almeida', 'Caio Barbosa', 'Daniela Carvalho']);
+  igual(g.abas['Histórico de correções'][1][3], 'entrada desfeita');
+});
+
+caso('desfazer entrada de dono existente não apaga o dono', () => {
+  const g = carregar();
+  const r = g.registrarEntrada(Object.assign({ donoId: '3' }, ENTRADA));
+  g.desfazerEntrada(r);
+  igual(g.abas['Proprietários'].length, 4);
+});
+
+caso('desfazer entrada recusa se o item já foi fechado', () => {
+  const g = carregar();
+  const r = g.registrarEntrada(Object.assign({ donoId: '3' }, ENTRADA));
+  g.registrarSaida({ idCons: r.id, status: 'Vendido', canal: 'Física', dataSaida: '2026-09-30' });
+  falha(() => g.desfazerEntrada(r), 'já mudou');
+  igual(g.abas['Consignações'].length, 4);
+});
+
+caso('desfazer saída volta ao estoque e restaura valor e observação', () => {
+  const g = carregar();
+  g.registrarSaida({ idCons: '102', status: 'Vendido', canal: 'Online', valor: '29000', dataSaida: '2026-09-30', observacoes: 'pix' });
+  g.desfazerSaida({ id: '102', status: 'Vendido', valor: 31500, obs: 'risco no quadro' });
+  const l = g.abas['Consignações'][2];
+  igual([l[9], l[8], l[11], l[7], l[12]], ['Em estoque', '', '', 31500, 'risco no quadro']);
+  igual(g.abas['Bicicletas'][2][2], 'Em estoque');
+});
+
+caso('desfazer saída recusa se o status já é outro', () => {
+  const g = carregar();
+  falha(() => g.desfazerSaida({ id: '101', status: 'Retirado', valor: 1, obs: '' }), 'já não está');
+});
+
+caso('conferência fica no histórico e volta no carregarOpcoes', () => {
+  const g = carregar();
+  g.registrarConferencia('102');
+  const hoje = new Date(), iso = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-' + String(hoje.getDate()).padStart(2,'0');
+  igual(g.carregarOpcoes().conferencias, { '102': iso });
+  igual(g.abas['Consignações'][2][9], 'Em estoque');
+});
+
+caso('conferência só vale para item em estoque', () => {
+  const g = carregar();
+  falha(() => g.registrarConferencia('101'), 'não está em estoque');
+});
+
+// ---- QA: entradas malformadas que o servidor aceitava (cada uma era um bug)
+const BASE = { tipo: 'Bicicleta', descricao: 'Teste', valor: '1000', dataEntrada: '2026-09-30', donoId: '1' };
+[
+  ['valor "0"', { valor: '0' }, 'entre R$ 10'],
+  ['valor "abc"', { valor: 'abc' }, 'entre R$ 10'],
+  ['valor negativo', { valor: '-500' }, 'entre R$ 10'],
+  ['valor "24.9" (era "24.900" digitado com ponto)', { valor: '24.9' }, null],
+  ['valor acima de 1 milhão', { valor: '1e9' }, 'entre R$ 10'],
+  ['data "ontem"', { dataEntrada: 'ontem' }, 'inválida'],
+  ['data 31/02', { dataEntrada: '2026-02-31' }, 'inválida'],
+  ['data no futuro', { dataEntrada: '2031-05-01' }, 'no futuro'],
+  ['data antes de 2020', { dataEntrada: '2019-12-31' }, 'anterior a 2020'],
+  ['tipo inexistente', { tipo: 'Patinete' }, 'Tipo inválido'],
+  ['dono inexistente', { donoId: '999' }, 'não encontrado'],
+  ['dono novo com nome já cadastrado (sem acento, minúsculo)', { donoId: '', donoNovo: '  beatriz   ALMEIDA ' }, 'Já existe'],
+].forEach(([nome, mud, erro]) => caso('entrada recusa ' + nome, () => {
+  const g = carregar();
+  if (erro) falha(() => g.registrarEntrada(Object.assign({}, BASE, mud)), erro);
+  else g.registrarEntrada(Object.assign({}, BASE, mud));   // 24.9 é válido no servidor; quem pega "24.900" é a tela
+  igual(g.abas['Consignações'].length, erro ? 3 : 4);
+}));
+
+[
+  ['situação "Em estoque"', { status: 'Em estoque' }, 'Situação inválida'],
+  ['situação "Doado"', { status: 'Doado' }, 'Situação inválida'],
+  ['canal "Feira"', { canal: 'Feira' }, 'canal'],
+  ['saída antes da entrada', { dataSaida: '2026-01-01' }, 'anterior à entrada'],
+  ['data "amanhã"', { dataSaida: 'amanhã' }, 'inválida'],
+  ['valor "0"', { valor: '0' }, 'entre R$ 10'],
+].forEach(([nome, mud, erro]) => caso('saída recusa ' + nome, () => {
+  const g = carregar();
+  falha(() => g.registrarSaida(Object.assign({ idCons: '102', status: 'Vendido', canal: 'Física', dataSaida: '2026-09-30' }, mud)), erro);
+  igual(g.abas['Consignações'][2][9], 'Em estoque');
+}));
+
+caso('correção recusa data de entrada ilegível em vez de apagá-la', () => {
+  const g = carregar(), a = reg(g, 102);
+  falha(() => g.corrigirRegistro({ id: '102', antes: a, depois: Object.assign({}, a, { entrada: 'xx' }) }), 'inválida');
+  igual(g.abas['Consignações'][2][10] instanceof Date, true);
+});
+
+caso('desfazer recusa consignação que não é a entrada mais recente', () => {
+  const g = carregar();
+  g.registrarEntrada(Object.assign({}, BASE));   // a 103 passa a ser a mais recente
+  falha(() => g.desfazerEntrada({ id: '102', idItem: '12', bike: true, idCliente: '2', donoNovo: true }), 'mais recente');
+  igual(g.abas['Consignações'].length, 4);
+  igual(g.abas['Proprietários'].length, 4);
+});
+
+caso('desfazer não apaga dono antigo mesmo se a tela disser que era novo', () => {
+  const g = carregar();
+  const r = g.registrarEntrada(Object.assign({}, BASE, { donoId: '1' }));
+  g.desfazerEntrada(Object.assign({}, r, { donoNovo: true, idCliente: '1' }));
+  igual(g.abas['Proprietários'].map(l => l[1]).includes('Beatriz Almeida'), true);
+});
+
+caso('texto que começa com = + - @ é gravado como texto, não fórmula', () => {
+  const g = carregar();
+  g.registrarEntrada(Object.assign({}, BASE, { descricao: '=IMPORTRANGE("x")', observacoes: '- pago no pix' }));
+  const l = g.abas['Consignações'].slice(-1)[0];
+  igual([l[5], l[12]], ["'=IMPORTRANGE(\"x\")", "'- pago no pix"]);
+});
+
+caso('telefone do dono novo vai como texto (mantém + e zero)', () => {
+  const g = carregar();
+  g.registrarEntrada(Object.assign({}, BASE, { donoId: '', donoNovo: 'Gabriela Nunes', donoContato: '+55 034 99999-0000' }));
+  igual(g.abas['Proprietários'].slice(-1)[0][2], "'+55 034 99999-0000");
+});
+
+caso('conferir duas vezes no mesmo dia grava uma linha só', () => {
+  const g = carregar();
+  g.registrarConferencia('102'); g.registrarConferencia('102');
+  igual(g.abas['Histórico de correções'].length, 2);
 });
 
 console.log(falhas ? '\n❌ ' + falhas + ' falha(s)' : '\n✅ todos passaram');

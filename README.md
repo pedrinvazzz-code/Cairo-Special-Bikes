@@ -20,7 +20,7 @@ Plataforma de dados de ponta a ponta para uma loja de consignação de bicicleta
 | **Problema** | A operação vivia em 12 planilhas preenchidas à mão, com datas inconsistentes, valores em formatos misturados e a mesma regra de negócio reescrita em vários lugares. Não dava para confiar em faturamento, giro ou estoque. |
 | **O que construí** | Aplicativo mobile (Apps Script) → Google Sheets → ETL em Python (GitHub Actions, a cada 2h) → Supabase/PostgreSQL → 7 views com as regras de negócio → Power BI e um assistente com ferramentas parametrizadas. |
 | **Resultado** | Uma fonte única de escrita, uma definição única de cada métrica, carga que falha alto em vez de gravar errado em silêncio, e uma janela de análise confiável declarada **no próprio dado**. |
-| **Destaques técnicos** | Auditoria de qualidade que encontrou uma estimativa de migração contaminando 2/3 da receita histórica; um bug de parser que passou por **1.236 execuções verdes**; RLS e papéis no Postgres; concorrência otimista e trilha de auditoria no app; 67 testes automatizados. |
+| **Destaques técnicos** | Auditoria de qualidade que encontrou uma estimativa de migração contaminando 2/3 da receita histórica; um bug de parser que passou por **1.236 execuções verdes**; RLS e papéis no Postgres; concorrência otimista e trilha de auditoria no app; 99 testes automatizados. |
 
 ---
 
@@ -137,6 +137,10 @@ Cadastrar uma bicicleta exigia mexer em três abas e digitar dois IDs à mão, e
 - **Aba Estoque:** valor em estoque, itens parados há 90 dias ou mais (a mesma fronteira da `vw_estoque_parado`), idade mediana, distribuição por faixa de dias e lista filtrável. Lê a planilha, e não o banco, para mostrar o que acabou de ser cadastrado.
 - **Ficha do proprietário:** tudo de um dono numa tela, que responde ao dono que liga perguntando "vendeu minha bike?".
 - **Correção de registros com concorrência otimista:** a tela envia o registro como o viu e como quer que fique, e o servidor só grava se a planilha ainda estiver como a pessoa viu. Toda alteração vai para uma aba de histórico, com quem, quando, o valor antes e o depois.
+- **Revisão dos parados:** passa pelos itens com 90 dias ou mais, um por vez (*ainda está aqui / já vendeu / dono retirou*), e sinaliza quando a data de entrada tem o padrão de estimativa da migração. A conferência fica no histórico, e o item não volta à fila por 30 dias.
+- **Desfazer logo depois de gravar:** o servidor só desfaz se o registro ainda estiver como acabou de ser gravado; depois disso, o caminho é a correção.
+- **Resumo do mês** (vendas, receita e comissão pela mesma regra de faixas da `vw_vendas`), indicação de quando os dados foram lidos, e atualização automática ao voltar para o app.
+- **Modo escuro** seguindo o tema do celular, esqueleto de carregamento e ícone próprio na tela inicial.
 
 > [!WARNING]
 > **Dados 100% fictícios.** As capturas abaixo foram feitas com o app rodando sobre uma **base simulada, sem nenhum dado da loja**: os nomes de proprietários (como "Eduardo Dias" ou "Larissa Marques"), os itens, os valores e as datas são **inventados** e não correspondem a clientes nem a vendas reais.
@@ -147,7 +151,11 @@ Cadastrar uma bicicleta exigia mexer em três abas e digitar dois IDs à mão, e
   <img src="docs/app/correcao.png" width="200" alt="Correção de registro (dados fictícios)">
   <img src="docs/app/busca.png" width="200" alt="Busca de proprietário (dados fictícios)">
 </p>
-<p align="center"><sub><b>Dados fictícios</b> · Estoque · Ficha do proprietário · Correção de registro · Busca</sub></p>
+<p align="center">
+  <img src="docs/app/revisao_parados.png" width="200" alt="Revisão dos parados (dados fictícios)">
+  <img src="docs/app/estoque_escuro.png" width="200" alt="Estoque no modo escuro (dados fictícios)">
+</p>
+<p align="center"><sub><b>Dados fictícios</b> · Estoque · Ficha do proprietário · Correção de registro · Busca · Revisão dos parados · Modo escuro</sub></p>
 
 ## O assistente
 
@@ -191,7 +199,7 @@ Quatro páginas (visão geral, financeiro, estoque e segmentação) com o modelo
 |---|---|---|
 | Parsers (`pipeline/test_transform.py`) | 53 casos com os formatos reais que já quebraram a base | antes de toda carga, no GitHub Actions |
 | Pós-carga (`pipeline/verificar.py`) | contagem banco × planilha por tabela, total mensal implausível, venda sem valor ou sem data | depois de toda carga; falha o job |
-| App (`appsscript/teste_formulario.js`) | 14 casos da correção de registros contra uma planilha falsa em memória: conflito de edição, reabertura, validação, propagação, histórico | `node appsscript/teste_formulario.js` |
+| App (`appsscript/teste_formulario.js`) | 46 casos contra uma planilha falsa em memória: correção de registros, desfazer, conferência e a validação de entradas malformadas (valor, data, status, fórmula na célula, dono duplicado), incluindo conflito de edição e histórico | `node appsscript/teste_formulario.js` |
 | Assistente (`testarConfiguracao`) | papel do token, bloqueio da tabela pelo banco, e 4 perguntas com gabarito calculado pelas ferramentas | antes de liberar uma versão |
 | Segurança (`sql/seguranca.sql`) | consulta final que lista, objeto a objeto, RLS e quem consegue ler | ao aplicar o script |
 
@@ -247,6 +255,7 @@ demo/gerar_dados_demo.py    → base de demonstração do Power BI (nomes fictí
 
 | Versão | Data | Destaques |
 |---|---|---|
+| **v3.3** | out/2026 | Revisão dos parados com conferência registrada; desfazer entrada e saída; resumo do mês; atualização automática; modo escuro; esqueleto de carregamento; ícone na tela inicial; rodada de QA com 16 bugs corrigidos; 46 testes do app |
 | **v3.2** | set/2026 | App redesenhado; busca nos seletores; aba Estoque; ficha do proprietário; correção de registros com concorrência otimista e trilha de auditoria; conta conectada visível; 14 testes do app |
 | **v3.1** | set/2026 | Correção de dois bugs de parser (milhar sem centavos, data ISO); view de vendas fechada para a chave pública; grants movidos para o `views.sql`; privilégios padrão fechados |
 | **v3.0** | set/2026 | 7 views com as regras de negócio; Power BI reescrito sobre elas; RLS e papel do assistente; app de preenchimento; assistente com ferramentas; 63 células corrigidas com trilha |

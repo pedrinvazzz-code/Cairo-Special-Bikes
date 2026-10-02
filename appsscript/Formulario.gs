@@ -50,9 +50,15 @@ function doGet() {
                     'Formulario', 'Formulário', 'formulario', 'Form'];
   for (var i = 0; i < candidatos.length; i++) {
     try {
+      // Ícone e título usados quando o app é adicionado à tela inicial do
+      // celular: o mesmo ícone do site da loja.
       return HtmlService.createHtmlOutputFromFile(candidatos[i])
         .setTitle('Cairo Special Bikes')
-        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+        .setFaviconUrl('https://cairospecialbikes.com.br/cdn/shop/files/2_Sem_fundo.png?crop=center&height=192&v=1766172221&width=192')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+        .addMetaTag('apple-mobile-web-app-capable', 'yes')
+        .addMetaTag('mobile-web-app-capable', 'yes')
+        .addMetaTag('apple-mobile-web-app-title', 'Cairo');
     } catch (e) {
       // não existe com esse nome, tenta o próximo
     }
@@ -157,6 +163,61 @@ function registro_(linha, cols) {
   };
 }
 
+// --------------------------------------------------------------- validação
+//
+// A tela já confere quase tudo, mas qualquer pessoa com acesso à planilha
+// consegue chamar estas funções direto pelo console do navegador. O servidor
+// é a última barreira, então confere de novo.
+
+// Abaixo de R$ 10 o pipeline lê o valor como ausente (transform.fmt_valor),
+// e uma venda "sem valor" derruba a verificação pós-carga.
+var VALOR_MIN = 10, VALOR_MAX = 1000000;
+
+function valorValido_(v, rotulo) {
+  var n = Number(v);
+  if (!isFinite(n) || n < VALOR_MIN || n > VALOR_MAX) {
+    throw new Error((rotulo || 'O valor') + ' precisa estar entre R$ ' + VALOR_MIN +
+                    ' e R$ 1.000.000. Digite só números, sem ponto de milhar: 24900.');
+  }
+  return n;
+}
+
+function hojeIso_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+/** yyyy-mm-dd válida, entre 2020 e hoje (o pipeline descarta fora de 2020–2030). */
+function dataValida_(texto, rotulo) {
+  var m = String(texto || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  var d = m && new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (!m || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) {
+    throw new Error(rotulo + ' inválida.');
+  }
+  if (texto < '2020-01-01') throw new Error(rotulo + ' anterior a 2020.');
+  if (texto > hojeIso_()) throw new Error(rotulo + ' no futuro.');
+  return texto;
+}
+
+/**
+ * Texto livre como TEXTO na planilha. setValue interpreta "=...", "+...",
+ * "-..." e "@..." como fórmula: "- pago no pix" virava #ERROR!. O apóstrofo
+ * no começo não aparece na célula nem na leitura.
+ */
+function texto_(v) {
+  var s = String(v === null || v === undefined ? '' : v).trim();
+  return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+/** Telefone sempre como texto: "+55..." e "034..." perdiam o + e o zero. */
+function telefone_(v) {
+  var s = String(v || '').trim();
+  return s ? "'" + s : '';
+}
+
+function semAcento_(t) {
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 function valoresUnicos_(aba, nomeColuna) {
   var cols = colunas_(aba);
   if (!cols[nomeColuna]) return [];
@@ -182,7 +243,16 @@ function usuario_() {
   var email = '', url = '';
   try { email = Session.getActiveUser().getEmail() || ''; } catch (e) {}
   try { url = ScriptApp.getService().getUrl() || ''; } catch (e) {}
-  return { email: email, planilha: SpreadsheetApp.getActive().getName(), url: url };
+  var tema = '';
+  try { tema = PropertiesService.getUserProperties().getProperty('tema') || ''; } catch (e) {}
+  return { email: email, planilha: SpreadsheetApp.getActive().getName(), url: url, tema: tema };
+}
+
+/** Claro ou escuro, guardado na conta de quem usa (vale em qualquer aparelho). */
+function salvarTema(t) {
+  if (t !== 'claro' && t !== 'escuro') throw new Error('Tema inválido.');
+  PropertiesService.getUserProperties().setProperty('tema', t);
+  return t;
 }
 
 function carregarOpcoes() {
@@ -213,6 +283,8 @@ function carregarOpcoes() {
 
   return {
     usuario: usuario_(),
+    agora: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm"),
+    conferencias: conferencias_(),
     donos: donos,
     registros: registros,
     marcas:         valoresUnicos_(aba_('bicicletas'), 'Marca')
@@ -233,9 +305,11 @@ function registrarEntrada(f) {
   if (!trava.tryLock(20000)) throw new Error('Planilha ocupada, tente de novo.');
 
   try {
-    if (!f.descricao) throw new Error('Falta a descrição do item.');
-    if (!f.valor)     throw new Error('Falta o valor.');
-    if (!f.donoId && !f.donoNovo) throw new Error('Falta o proprietário.');
+    if (!String(f.descricao || '').trim()) throw new Error('Falta a descrição do item.');
+    if (f.tipo !== TIPO_BIKE && f.tipo !== TIPO_COMP) throw new Error('Tipo inválido: ' + f.tipo);
+    valorValido_(f.valor);
+    dataValida_(f.dataEntrada, 'Data de entrada');
+    if (!f.donoId && !String(f.donoNovo || '').trim()) throw new Error('Falta o proprietário.');
 
     // 1. o dono, se for novo
     var idCliente = f.donoId, nomeDono = '';
@@ -243,20 +317,29 @@ function registrarEntrada(f) {
     var colsProp = colunas_(abaProp);
 
     if (!idCliente) {
+      // mesmo nome, ignorando maiúsculas, acentos e espaços: é a mesma pessoa
+      var nomes = dados_(abaProp);
+      for (var n = 0; n < nomes.length; n++) {
+        if (semAcento_(nomes[n][colsProp['Nome'] - 1]) === semAcento_(f.donoNovo)) {
+          throw new Error('Já existe o proprietário "' + String(nomes[n][colsProp['Nome'] - 1]).trim() +
+                          '". Escolha na lista em vez de cadastrar de novo.');
+        }
+      }
       idCliente = String(proximoId_(abaProp, colsProp['ID_Cliente']));
       var linhaProp = abaProp.getLastRow() + 1;
       abaProp.getRange(linhaProp, colsProp['ID_Cliente']).setValue(idCliente);
-      abaProp.getRange(linhaProp, colsProp['Nome']).setValue(f.donoNovo);
+      abaProp.getRange(linhaProp, colsProp['Nome']).setValue(texto_(f.donoNovo));
       if (colsProp['Contato'] && f.donoContato) {
-        abaProp.getRange(linhaProp, colsProp['Contato']).setValue(f.donoContato);
+        abaProp.getRange(linhaProp, colsProp['Contato']).setValue(telefone_(f.donoContato));
       }
       if (colsProp['Cidade'] && f.donoCidade) {
-        abaProp.getRange(linhaProp, colsProp['Cidade']).setValue(f.donoCidade);
+        abaProp.getRange(linhaProp, colsProp['Cidade']).setValue(texto_(f.donoCidade));
       }
-      nomeDono = f.donoNovo;
+      nomeDono = String(f.donoNovo).trim();
     } else {
       var l = acharLinhaPorId_(abaProp, colsProp['ID_Cliente'], idCliente);
-      nomeDono = l ? String(abaProp.getRange(l, colsProp['Nome']).getValue()).trim() : '';
+      if (!l) throw new Error('Proprietário ' + idCliente + ' não encontrado. Recarregue o app.');
+      nomeDono = String(abaProp.getRange(l, colsProp['Nome']).getValue()).trim();
     }
 
     // 2. o item
@@ -268,12 +351,12 @@ function registrarEntrada(f) {
     var idItem = String(proximoId_(abaItem, colIdItem));
     var linhaItem = abaItem.getLastRow() + 1;
     abaItem.getRange(linhaItem, colIdItem).setValue(idItem);
-    abaItem.getRange(linhaItem, colsItem['Nome/Descrição']).setValue(f.descricao);
-    if (f.marca) abaItem.getRange(linhaItem, colsItem['Marca']).setValue(f.marca);
+    abaItem.getRange(linhaItem, colsItem['Nome/Descrição']).setValue(texto_(f.descricao));
+    if (f.marca) abaItem.getRange(linhaItem, colsItem['Marca']).setValue(texto_(f.marca));
     abaItem.getRange(linhaItem, colsItem['Status']).setValue('Em estoque');
 
     if (ehBike) {
-      if (f.modelo)    abaItem.getRange(linhaItem, colsItem['Modelo']).setValue(f.modelo);
+      if (f.modelo)    abaItem.getRange(linhaItem, colsItem['Modelo']).setValue(texto_(f.modelo));
       if (f.ano)       abaItem.getRange(linhaItem, colsItem['Ano']).setValue(f.ano);
       if (f.categoria) abaItem.getRange(linhaItem, colsItem['Categoria']).setValue(f.categoria);
       if (f.tamanho)   abaItem.getRange(linhaItem, colsItem['Tamanho']).setValue(f.tamanho);
@@ -293,17 +376,20 @@ function registrarEntrada(f) {
            .setValue(idItem);
     abaCons.getRange(linhaCons, colsCons['ID_Cliente']).setValue(idCliente);
     abaCons.getRange(linhaCons, colsCons['Tipo']).setValue(f.tipo);
-    abaCons.getRange(linhaCons, colsCons['Item / Produto']).setValue(f.descricao);
-    abaCons.getRange(linhaCons, colsCons['Proprietário']).setValue(nomeDono);
+    abaCons.getRange(linhaCons, colsCons['Item / Produto']).setValue(texto_(f.descricao));
+    abaCons.getRange(linhaCons, colsCons['Proprietário']).setValue(texto_(nomeDono));
     abaCons.getRange(linhaCons, colsCons['Status']).setValue('Em estoque');
     gravarValor_(abaCons, linhaCons, colsCons['Valor (R$)'], f.valor);
     gravarData_(abaCons, linhaCons, colsCons['Data Entrada'], f.dataEntrada);
     if (f.observacoes) {
-      abaCons.getRange(linhaCons, colsCons['Observações']).setValue(f.observacoes);
+      abaCons.getRange(linhaCons, colsCons['Observações']).setValue(texto_(f.observacoes));
     }
 
-    return 'Registrado. Consignação ' + idCons + ', ' +
-           (ehBike ? 'bike' : 'componente') + ' ' + idItem + '.';
+    // Os IDs voltam para a tela poder oferecer "Desfazer" (desfazerEntrada).
+    return {
+      msg: 'Registrado. Consignação ' + idCons + ', ' + (ehBike ? 'bike' : 'componente') + ' ' + idItem + '.',
+      id: idCons, idItem: idItem, bike: ehBike, idCliente: String(idCliente), donoNovo: !f.donoId
+    };
   } finally {
     trava.releaseLock();
   }
@@ -325,8 +411,10 @@ function registrarSaida(f) {
 
   try {
     if (!f.idCons)    throw new Error('Escolha o item.');
-    if (!f.dataSaida) throw new Error('Falta a data.');
-    if (f.status === 'Vendido' && !f.canal) throw new Error('Falta o canal da venda.');
+    if (f.status !== 'Vendido' && f.status !== 'Retirado') throw new Error('Situação inválida: ' + f.status);
+    dataValida_(f.dataSaida, 'Data de saída');
+    if (f.status === 'Vendido' && CANAIS_VALIDOS.indexOf(f.canal) < 0) throw new Error('Falta o canal da venda.');
+    if (f.valor !== undefined && f.valor !== null && String(f.valor) !== '') valorValido_(f.valor);
 
     var abaCons = aba_('consignacoes');
     var cols = colunas_(abaCons);
@@ -337,13 +425,17 @@ function registrarSaida(f) {
     if (atual !== 'Em estoque') {
       throw new Error('A consignação ' + f.idCons + ' já está como "' + atual + '".');
     }
+    var entrada = dataIso_(abaCons.getRange(linha, cols['Data Entrada']).getValue());
+    if (entrada && f.dataSaida < entrada) {
+      throw new Error('A data de saída é anterior à entrada (' + entrada.split('-').reverse().join('/') + ').');
+    }
 
     abaCons.getRange(linha, cols['Status']).setValue(f.status);
     gravarData_(abaCons, linha, cols['Data Saída'], f.dataSaida);
     if (f.valor) gravarValor_(abaCons, linha, cols['Valor (R$)'], f.valor);
     abaCons.getRange(linha, cols['Loja']).setValue(f.status === 'Vendido' ? f.canal : '');
     if (f.observacoes) {
-      abaCons.getRange(linha, cols['Observações']).setValue(f.observacoes);
+      abaCons.getRange(linha, cols['Observações']).setValue(texto_(f.observacoes));
     }
 
     // o onEdit não dispara em escrita por script: propaga aqui
@@ -439,7 +531,10 @@ function corrigirRegistro(f) {
 
     if (STATUS_VALIDOS.indexOf(fim.status) < 0) throw new Error('Status inválido: ' + fim.status);
     if (!fim.item) throw new Error('A descrição não pode ficar vazia.');
-    if (!(Number(fim.valor) > 0)) throw new Error('O valor precisa ser maior que zero.');
+    valorValido_(fim.valor);
+    // data mudada precisa ser válida; vazia só para saída de item em estoque
+    if (mudancas.some(function (m) { return m.campo === 'entrada'; })) dataValida_(fim.entrada, 'Data de entrada');
+    if (fim.saida && mudancas.some(function (m) { return m.campo === 'saida'; })) dataValida_(fim.saida, 'Data de saída');
     if (fim.status !== 'Em estoque' && !fim.saida) throw new Error('Falta a data de saída.');
     if (fim.status === 'Vendido' && CANAIS_VALIDOS.indexOf(fim.loja) < 0) {
       throw new Error('Falta o canal da venda.');
@@ -464,16 +559,17 @@ function corrigirRegistro(f) {
       if (c.campo === 'valor') gravarValor_(abaCons, linha, col, c.depois);
       else if ((c.campo === 'entrada' || c.campo === 'saida') && c.depois) {
         gravarData_(abaCons, linha, col, c.depois);
-      } else abaCons.getRange(linha, col).setValue(c.depois);
+      } else if (c.campo === 'item' || c.campo === 'obs') abaCons.getRange(linha, col).setValue(texto_(c.depois));
+      else abaCons.getRange(linha, col).setValue(c.depois);
     }
     if (nomeDono !== null) {
-      abaCons.getRange(linha, cols['Proprietário']).setValue(nomeDono);
+      abaCons.getRange(linha, cols['Proprietário']).setValue(texto_(nomeDono));
       mudancas.push({ campo: 'dono', antes: atual.dono, depois: nomeDono });
     }
 
     // a descrição e o status vivem também na aba do item
     for (var n = 0; n < mudancas.length; n++) {
-      if (mudancas[n].campo === 'item') atualizarItem_(abaCons, cols, linha, 'Nome/Descrição', fim.item);
+      if (mudancas[n].campo === 'item') atualizarItem_(abaCons, cols, linha, 'Nome/Descrição', texto_(fim.item));
     }
     if (fim.status !== atual.status) propagar_(abaCons, cols, linha, fim.status);
 
@@ -489,7 +585,7 @@ function corrigirRegistro(f) {
 function normalizar_(campo, v) {
   if (v === null || v === undefined) return '';
   if (campo === 'valor') return String(Number(v) || 0);
-  if (campo === 'entrada' || campo === 'saida') return dataIso_(v);
+  if (campo === 'entrada' || campo === 'saida') return v === '' ? '' : (dataIso_(v) || String(v).trim());
   return String(v).trim();
 }
 
@@ -540,4 +636,124 @@ function registrarHistorico_(idCons, mudancas) {
     return [agora, quem, idCons, m.campo, m.antes, m.depois];
   });
   aba.getRange(aba.getLastRow() + 1, 1, linhas.length, 6).setValues(linhas);
+}
+
+
+// ------------------------------------------------------- desfazer e conferir
+
+/**
+ * Desfaz uma entrada recém-registrada: apaga a consignação, o item e, se o
+ * dono foi cadastrado nessa mesma entrada e não tem mais nada, o dono.
+ *
+ * Só apaga se a consignação ainda estiver exatamente como foi criada (Em
+ * estoque, apontando para o mesmo item). Se alguém já fechou ou mexeu, recusa:
+ * aí o caminho é a correção, que deixa rastro campo a campo.
+ */
+function desfazerEntrada(f) {
+  var trava = LockService.getDocumentLock();
+  if (!trava.tryLock(20000)) throw new Error('Planilha ocupada, tente de novo.');
+  try {
+    var abaCons = aba_('consignacoes'), cols = colunas_(abaCons);
+    var linha = acharLinhaPorId_(abaCons, cols['ID_Consignação'], f.id);
+    if (!linha) throw new Error('Consignação ' + f.id + ' não encontrada.');
+    var r = registro_(abaCons.getRange(linha, 1, 1, abaCons.getLastColumn()).getValues()[0], cols);
+    var colFk = f.bike ? 'ID_Bike' : 'ID_Componente';
+    var idItemNaLinha = String(abaCons.getRange(linha, cols[colFk]).getValue()).trim();
+    if (r.status !== 'Em estoque' || idItemNaLinha !== String(f.idItem)) {
+      throw new Error('A consignação ' + f.id + ' já mudou desde a entrada. Use "Corrigir registro".');
+    }
+    // Desfazer é para a entrada que acabou de ser feita: ela é a de maior ID.
+    // Sem isto, chamar com o ID de qualquer consignação em estoque a apagava.
+    if (Number(f.id) !== proximoId_(abaCons, cols['ID_Consignação']) - 1) {
+      throw new Error('Só dá para desfazer a entrada mais recente. Para as outras, use "Corrigir registro".');
+    }
+
+    abaCons.deleteRow(linha);
+
+    var abaItem = aba_(f.bike ? 'bicicletas' : 'componentes'), colsItem = colunas_(abaItem);
+    var linhaItem = acharLinhaPorId_(abaItem, colsItem[f.bike ? 'ID_Bike' : 'ID_Componente'], f.idItem);
+    if (linhaItem) abaItem.deleteRow(linhaItem);
+
+    var donoApagado = false;
+    var abaPropD = aba_('proprietarios'), colsPropD = colunas_(abaPropD);
+    var donoEhONovo = f.donoNovo && Number(f.idCliente) === proximoId_(abaPropD, colsPropD['ID_Cliente']) - 1;
+    if (donoEhONovo) {
+      var outras = dados_(abaCons).some(function (l) {
+        return String(l[cols['ID_Cliente'] - 1]).trim() === String(f.idCliente);
+      });
+      if (!outras) {
+        var abaProp = aba_('proprietarios'), colsProp = colunas_(abaProp);
+        var lp = acharLinhaPorId_(abaProp, colsProp['ID_Cliente'], f.idCliente);
+        if (lp) { abaProp.deleteRow(lp); donoApagado = true; }
+      }
+    }
+
+    registrarHistorico_(f.id, [{ campo: 'entrada desfeita', antes: r.item + ' · ' + r.dono, depois: '' }]);
+    return 'Entrada desfeita: consignação ' + f.id + ' removida' + (donoApagado ? ', com o proprietário novo.' : '.');
+  } finally {
+    trava.releaseLock();
+  }
+}
+
+/**
+ * Desfaz um fechamento recém-registrado: volta a Em estoque e restaura o
+ * valor e as observações que a tela guardou de antes da saída.
+ */
+function desfazerSaida(f) {
+  var trava = LockService.getDocumentLock();
+  if (!trava.tryLock(20000)) throw new Error('Planilha ocupada, tente de novo.');
+  try {
+    var abaCons = aba_('consignacoes'), cols = colunas_(abaCons);
+    var linha = acharLinhaPorId_(abaCons, cols['ID_Consignação'], f.id);
+    if (!linha) throw new Error('Consignação ' + f.id + ' não encontrada.');
+    var r = registro_(abaCons.getRange(linha, 1, 1, abaCons.getLastColumn()).getValues()[0], cols);
+    if (f.status !== 'Vendido' && f.status !== 'Retirado') throw new Error('Situação inválida: ' + f.status);
+    if (r.status !== f.status) {
+      throw new Error('A consignação ' + f.id + ' já não está como "' + f.status + '". Use "Corrigir registro".');
+    }
+
+    abaCons.getRange(linha, cols['Status']).setValue('Em estoque');
+    abaCons.getRange(linha, cols['Data Saída']).setValue('');
+    abaCons.getRange(linha, cols['Loja']).setValue('');
+    if (f.valor) gravarValor_(abaCons, linha, cols['Valor (R$)'], valorValido_(f.valor));
+    if (cols['Observações']) abaCons.getRange(linha, cols['Observações']).setValue(texto_(f.obs));
+    propagar_(abaCons, cols, linha, 'Em estoque');
+
+    registrarHistorico_(f.id, [
+      { campo: 'saída desfeita', antes: r.status + ' em ' + r.saida, depois: 'Em estoque' }
+    ]);
+    return 'Fechamento desfeito: a consignação ' + f.id + ' voltou para o estoque.';
+  } finally {
+    trava.releaseLock();
+  }
+}
+
+/**
+ * "Ainda está na loja": a revisão dos parados confirma que o item existe sem
+ * mudar a consignação. Fica só no histórico, que a tela lê de volta para não
+ * pedir a mesma conferência todo dia.
+ */
+function registrarConferencia(id) {
+  var abaCons = aba_('consignacoes'), cols = colunas_(abaCons);
+  var linha = acharLinhaPorId_(abaCons, cols['ID_Consignação'], id);
+  if (!linha) throw new Error('Consignação ' + id + ' não encontrada.');
+  var status = String(abaCons.getRange(linha, cols['Status']).getValue()).trim();
+  if (status !== 'Em estoque') throw new Error('A consignação ' + id + ' não está em estoque.');
+  if (conferencias_()[String(id)] === hojeIso_()) return 'Já conferido hoje.';
+  registrarHistorico_(String(id), [{ campo: 'conferência', antes: '', depois: 'ainda na loja' }]);
+  return 'Conferido.';
+}
+
+/** id da consignação -> data (yyyy-mm-dd) da última conferência. */
+function conferencias_() {
+  var aba = SpreadsheetApp.getActive().getSheetByName('Histórico de correções');
+  var mapa = {};
+  if (!aba || aba.getLastRow() < 2) return mapa;
+  var linhas = aba.getRange(2, 1, aba.getLastRow() - 1, 4).getValues();
+  for (var i = 0; i < linhas.length; i++) {
+    if (String(linhas[i][3]).trim() !== 'conferência') continue;
+    var id = String(linhas[i][2]).trim(), quando = dataIso_(linhas[i][0]);
+    if (quando && (!mapa[id] || quando > mapa[id])) mapa[id] = quando;
+  }
+  return mapa;
 }

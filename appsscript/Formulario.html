@@ -3,7 +3,28 @@
 <head>
 <meta charset="utf-8">
 <base target="_top">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141416" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<script>
+/* Tema antes da primeira pintura, para não piscar claro e virar escuro.
+   Escolha salva no aparelho; sem escolha, segue o tema do celular. */
+var TEMA_SALVO = null;
+try { TEMA_SALVO = localStorage.getItem('tema'); } catch (e) {}
+function temaDoSistema() { return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro'; }
+function aplicarTema(t) {
+  document.documentElement.classList.toggle('escuro', t === 'escuro');
+  document.documentElement.style.colorScheme = t === 'escuro' ? 'dark' : 'light';
+  var metas = document.querySelectorAll('meta[name="theme-color"]');
+  for (var i = 0; i < metas.length; i++) { metas[i].removeAttribute('media'); metas[i].content = t === 'escuro' ? '#141416' : '#FFFFFF'; }
+}
+aplicarTema(TEMA_SALVO || temaDoSistema());
+if (window.matchMedia) {
+  var mqTema = matchMedia('(prefers-color-scheme: dark)');
+  var seguirSistema = function () { if (!TEMA_SALVO) aplicarTema(temaDoSistema()); };
+  if (mqTema.addEventListener) mqTema.addEventListener('change', seguirSistema); else if (mqTema.addListener) mqTema.addListener(seguirSistema);
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -25,6 +46,15 @@
     --rosado:   #FDF1EE;
     --pessego:  #FFB896;
     --ok:       #1F7A4D;
+    --sobre-carbono: #FFFFFF;
+    --heroi:    #1C1C1E;
+    --topo:     rgba(255,255,255,.86);
+    --folha:    #FFFFFF;
+    --barra:    rgba(255,246,241,.96);
+    --barra0:   rgba(255,246,241,0);
+    --risco:    #D8D8DC;
+    --erro-bg:  #FDECEC;
+    --erro-tx:  #8A1C24;
     --r-campo:  12px;
     --r-card:   18px;
     --sombra:   0 1px 2px rgba(28,28,30,.06), 0 4px 14px rgba(28,28,30,.05);
@@ -50,7 +80,7 @@
   /* ------------------------------------------------------- cabeçalho */
   .topo {
     position: sticky; top: 0; z-index: 20;
-    background: rgba(255,255,255,.86);
+    background: var(--topo);
     -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px);
   }
   .topo .dentro { position: relative; padding: 14px 20px 12px 20px; }
@@ -63,6 +93,15 @@
     display: flex; align-items: center; justify-content: center;
   }
   .conta.sem { background: var(--campo); color: var(--fraco); }
+  /* alternar claro/escuro, espelhando o botão da conta do outro lado */
+  .tema {
+    position: absolute; top: 16px; left: 20px; width: 36px; height: 36px; padding: 0; border-radius: 50%;
+    border: none; cursor: pointer; color: var(--tinta); background: var(--campo);
+    box-shadow: 0 0 0 1px var(--linha); display: flex; align-items: center; justify-content: center;
+  }
+  .tema .sol { display: none; }
+  html.escuro .tema .sol { display: block; }
+  html.escuro .tema .lua { display: none; }
   .conta-email { font-size: 17px; font-weight: 600; word-break: break-all; margin: 0 0 2px 0; text-align: center; }
   .conta-sub { font-size: 13.5px; color: var(--fraco); text-align: center; margin: 0 0 18px 0; }
   .conta-dica {
@@ -90,12 +129,14 @@
     transition: background .2s, color .2s, box-shadow .2s;
   }
   .abas button[aria-selected="true"] { color: var(--tinta); background: var(--papel); box-shadow: var(--sombra); }
+  .abas button:disabled { opacity: .45; cursor: default; }
   .abas button[aria-selected="true"] svg { color: var(--vermelho); }
   .abas button svg { flex-shrink: 0; }
   /* em tela estreita, só a aba ativa mostra o ícone: com quatro abas não cabe tudo */
-  @media (max-width: 400px) { .abas button:not([aria-selected="true"]) svg { display: none; } }
+  @media (max-width: 400px) { .abas button svg { display: none; } }
+  @media (max-width: 360px) { .abas button { font-size: 12px; padding: 0 2px; } }
 
-  main { position: relative; z-index: 1; padding: 0 20px 120px 20px; }
+  main { position: relative; z-index: 1; padding: 0 20px 120px 20px; overflow-x: hidden; overflow-x: clip; }
 
   /* ---------------------------------------------------------- seções */
   .secao { margin-top: 28px; }
@@ -184,12 +225,12 @@
   /* ----------------------------------------------------------- ações */
   .barra {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-    background: linear-gradient(to top, rgba(255,246,241,.96) 55%, rgba(255,246,241,0));
+    background: linear-gradient(to top, var(--barra) 55%, var(--barra0));
     padding: 22px 20px calc(14px + env(safe-area-inset-bottom)) 20px;
   }
   .enviar {
     width: 100%; height: 52px; font: inherit; font-size: 15.5px; font-weight: 600;
-    color: #FFF; background: var(--carbono);
+    color: var(--sobre-carbono); background: var(--carbono);
     border: none; border-radius: 999px; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 10px;
     box-shadow: 0 6px 18px rgba(28,28,30,.18);
@@ -209,7 +250,7 @@
   .aviso { margin-top: 20px; padding: 13px 14px; font-size: 14px; display: none; border-radius: var(--r-campo); }
   .aviso.erro {
     display: flex; gap: 10px; align-items: flex-start;
-    background: #FDECEC; color: #8A1C24;
+    background: var(--erro-bg); color: var(--erro-tx);
   }
   .aviso.erro::before {
     content: '!'; flex-shrink: 0; width: 20px; height: 20px; margin-top: 1px; border-radius: 50%;
@@ -221,7 +262,7 @@
   .sucesso { text-align: center; padding: 64px 8px 20px 8px; }
   .selo {
     width: 72px; height: 72px; margin: 0 auto 22px auto; border-radius: 50%;
-    background: var(--carbono); color: #FFF;
+    background: var(--carbono); color: var(--sobre-carbono);
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 0 0 10px rgba(255,184,150,.25), 0 10px 30px rgba(28,28,30,.18);
     animation: surgir .4s cubic-bezier(.2,.9,.3,1.3) both;
@@ -233,7 +274,7 @@
   .sucesso p { margin: 0 auto; max-width: 320px; color: var(--grafite); font-size: 15px; }
   .denovo {
     margin-top: 30px; width: 100%; height: 50px; font: inherit;
-    font-size: 15px; font-weight: 600; color: #FFF; background: var(--carbono);
+    font-size: 15px; font-weight: 600; color: var(--sobre-carbono); background: var(--carbono);
     border: none; border-radius: 999px; cursor: pointer;
   }
   .sucesso .denovo + .denovo { margin-top: 10px; background: var(--campo); color: var(--tinta); }
@@ -243,7 +284,7 @@
   .vazio { padding: 28px 0 8px 0; text-align: center; }
   .vazio .marca {
     width: 52px; height: 52px; margin: 0 auto 16px auto; border-radius: 16px;
-    background: var(--carbono); color: #FFF;
+    background: var(--carbono); color: var(--sobre-carbono);
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 8px 22px rgba(28,28,30,.18);
   }
@@ -270,7 +311,7 @@
     background: var(--campo); padding: 11px 14px; border-radius: 18px 18px 18px 6px;
   }
   .fala.eu { align-items: flex-end; }
-  .fala.eu .texto { background: var(--carbono); color: #FFF; border-radius: 18px 18px 6px 18px; }
+  .fala.eu .texto { background: var(--carbono); color: var(--sobre-carbono); border-radius: 18px 18px 6px 18px; }
   /* três pontos pulando no lugar do "consultando…": a resposta pode levar
      uns segundos, e texto parado parece travado */
   .pensando { display: flex; gap: 5px; padding: 6px 2px; }
@@ -285,7 +326,7 @@
   .linhaChat input:focus { box-shadow: none; background: transparent; }
   .linhaChat button {
     width: 44px; height: 44px; flex-shrink: 0; border: none; border-radius: 50%;
-    background: var(--carbono); color: #FFF; cursor: pointer;
+    background: var(--carbono); color: var(--sobre-carbono); cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
   .linhaChat button:disabled { opacity: .45; cursor: default; }
@@ -315,7 +356,7 @@
   .folha {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; max-width: 520px; margin: 0 auto;
     max-height: 90vh; display: flex; flex-direction: column;
-    background: var(--papel); border-radius: 22px 22px 0 0; box-shadow: 0 -10px 40px rgba(28,28,30,.18);
+    background: var(--folha); border-radius: 22px 22px 0 0; box-shadow: 0 -10px 40px rgba(28,28,30,.18);
     transform: translateY(105%); transition: transform .28s cubic-bezier(.2,.8,.2,1);
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -338,7 +379,8 @@
     background: none; border: none; border-bottom: 1px solid var(--linha); cursor: pointer; color: var(--tinta);
   }
   .opcao:last-child { border-bottom: none; }
-  .opcao .txt { flex: 1; min-width: 0; }
+  .opcao { overflow: hidden; max-width: 100%; }
+  .opcao .txt { flex: 1 1 0%; min-width: 0; overflow: hidden; }
   .opcao .txt b { display: block; font-weight: 500; font-size: 15.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .opcao .txt small { display: block; color: var(--fraco); font-size: 13px; }
   mark { background: #FFE3D6; color: inherit; border-radius: 3px; padding: 0 1px; }
@@ -357,7 +399,7 @@
   /* ------------------------------------------------------------ estoque */
   .heroi {
     margin-top: 22px; padding: 18px 18px 16px 18px; border-radius: var(--r-card);
-    background: var(--carbono); color: #FFF; box-shadow: 0 10px 28px rgba(28,28,30,.18);
+    background: var(--heroi); color: #FFF; box-shadow: 0 10px 28px rgba(28,28,30,.18);
     position: relative; overflow: hidden;
   }
   .heroi::after {
@@ -401,24 +443,30 @@
     color: var(--grafite); background: var(--campo); border: none; border-radius: 999px; cursor: pointer;
     display: flex; align-items: center; gap: 6px;
   }
-  .chips button[aria-pressed="true"] { color: #FFF; background: var(--carbono); }
+  .chips button[aria-pressed="true"] { color: var(--sobre-carbono); background: var(--carbono); }
   .chips .n { font-size: 12px; opacity: .7; font-variant-numeric: tabular-nums; }
   .buscaLista { position: relative; margin-top: 10px; }
   .buscaLista input { padding-left: 42px; }
   .buscaLista svg { position: absolute; left: 14px; top: 15px; color: var(--fraco); }
 
   .lista { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  /* Cartão é um <button>. No Safari, botão não encolhe o conteúdo como uma
+     div: o título longo não cortava, passava da borda e alargava a página
+     inteira. Bloco + overflow hidden + linhas com min-width 0 resolvem nos dois. */
   .reg {
-    width: 100%; padding: 13px 14px; font: inherit; text-align: left; cursor: pointer; color: var(--tinta);
+    display: block; width: 100%; max-width: 100%; min-width: 0; overflow: hidden;
+    padding: 13px 14px; font: inherit; text-align: left; cursor: pointer; color: var(--tinta);
     background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; box-shadow: var(--sombra);
-    display: flex; flex-direction: column; gap: 3px; transition: transform .1s;
+    transition: transform .1s;
   }
+  .reg .l1, .reg .l2 { width: 100%; min-width: 0; }
+  .reg .l2 { margin-top: 3px; }
   .reg:active { transform: scale(.99); }
   .reg .l1 { display: flex; align-items: baseline; gap: 10px; }
-  .reg .l1 b { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .reg .l1 span { font-weight: 600; font-size: 14.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .reg .l1 b { display: block; flex: 1 1 0%; min-width: 0; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .reg .l1 span { flex-shrink: 0; font-weight: 600; font-size: 14.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .reg .l2 { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fraco); }
-  .reg .l2 .dono { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .reg .l2 .dono { display: block; flex: 1 1 0%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .selo-dias {
     flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px;
     border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--campo); color: var(--grafite);
@@ -441,7 +489,7 @@
     height: 50px; font: inherit; font-size: 15px; font-weight: 600; border: none; border-radius: 999px; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 8px;
   }
-  .acoes .primario { background: var(--carbono); color: #FFF; }
+  .acoes .primario { background: var(--carbono); color: var(--sobre-carbono); }
   .acoes a { text-decoration: none; }
   .acoes .secundario { background: var(--campo); color: var(--tinta); }
 
@@ -454,14 +502,15 @@
   .segmento button[aria-pressed="true"] { background: var(--papel); color: var(--tinta); box-shadow: var(--sombra); }
   .mudou label::after { content: ' · alterado'; color: var(--vermelho); font-weight: 600; }
   .resumoMudancas { margin-top: 0; font-size: 13.5px; color: var(--grafite); text-align: center; min-height: 20px; }
-  .rodapeFolha { padding: 12px 20px calc(14px + env(safe-area-inset-bottom)) 20px; border-top: 1px solid var(--linha); flex-shrink: 0; background: var(--papel); }
+  .rodapeFolha { padding: 12px 20px calc(14px + env(safe-area-inset-bottom)) 20px; border-top: 1px solid var(--linha); flex-shrink: 0; background: var(--folha); }
 
   /* ---------------------------------------------------------------- toast */
   .toast {
     position: fixed; left: 50%; bottom: 96px; z-index: 60; transform: translate(-50%, 20px);
-    padding: 12px 18px; border-radius: 999px; background: var(--carbono); color: #FFF; font-size: 14.5px; font-weight: 500;
+    padding: 12px 18px; border-radius: 20px; background: var(--carbono); color: var(--sobre-carbono); font-size: 14.5px; font-weight: 500;
     box-shadow: 0 10px 30px rgba(28,28,30,.25); opacity: 0; pointer-events: none;
-    transition: opacity .2s, transform .25s; display: flex; align-items: center; gap: 8px; white-space: nowrap;
+    transition: opacity .2s, transform .25s; display: flex; align-items: center; gap: 8px;
+    width: max-content; max-width: calc(100vw - 32px); text-align: center; line-height: 1.35;
   }
   .toast.visivel { opacity: 1; transform: translate(-50%, 0); }
 
@@ -470,17 +519,17 @@
     padding: 80px 0; color: var(--fraco); font-size: 14px;
     display: flex; flex-direction: column; align-items: center; gap: 16px;
   }
-  .carregando.falhou { color: #8A1C24; text-align: center; }
+  .carregando.falhou { color: var(--erro-tx); text-align: center; }
   /* carregando = uma roda girando */
   .roda { color: var(--carbono); animation: girar 1.1s linear infinite; }
   .roda .aro { color: var(--vermelho); }
 
   /* a bike "andando" sobre uma linha, fechando telas vazias e de sucesso */
-  .estrada { margin: 40px auto 0 auto; width: 170px; color: #D8D8DC; text-align: center; }
+  .estrada { margin: 40px auto 0 auto; width: 170px; color: var(--risco); text-align: center; }
   .estrada .arte { display: block; margin: 0 auto; }
   .estrada::after { content: ''; display: block; height: 1.5px; margin-top: -1px; border-radius: 2px;
-                    background: linear-gradient(90deg, rgba(216,216,220,0), #D8D8DC 20%, #D8D8DC 80%, rgba(216,216,220,0)); }
-  .semResultado .arte { display: block; margin: 0 auto 10px auto; color: #D8D8DC; }
+                    background: linear-gradient(90deg, transparent, var(--risco) 20%, var(--risco) 80%, transparent); }
+  .semResultado .arte { display: block; margin: 0 auto 10px auto; color: var(--risco); }
 
   /* ------------------------------------------------------------ ficha */
   .ficha-topo { position: relative; text-align: center; padding: 14px 0 18px 0; overflow: hidden; }
@@ -535,6 +584,131 @@
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
     .selo path { stroke-dashoffset: 0; }
   }
+
+  /* --------------------------------------------- esqueleto de carregamento */
+  /* No lugar de uma roda sozinha numa tela vazia: o formato do que vai
+     aparecer, para a espera parecer menor e a tela não "pular" ao chegar. */
+  .esqueleto { padding-top: 28px; }
+  .esq { background: var(--campo); border-radius: 10px; position: relative; overflow: hidden; }
+  .esq::after {
+    content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+    animation: brilho 1.3s infinite;
+  }
+  @keyframes brilho { to { transform: translateX(100%); } }
+  .esq-titulo { width: 46%; height: 18px; margin-bottom: 14px; }
+  .esq-tiles { display: flex; gap: 10px; margin-bottom: 28px; }
+  .esq-tiles .esq { flex: 1; height: 112px; border-radius: var(--r-card); }
+  .esq-rotulo { width: 28%; height: 12px; margin: 16px 0 8px 2px; border-radius: 6px; }
+  .esq-campo { height: 50px; border-radius: var(--r-campo); }
+  .esqueleto .status { display: flex; align-items: center; justify-content: center; gap: 10px;
+                       margin-top: 26px; color: var(--fraco); font-size: 13.5px; }
+  .esqueleto .roda { width: 22px; height: 22px; }
+
+  /* ------------------------------------------------- transição de telas */
+  .entrar { animation: aparecer .22s ease-out both; }
+  @keyframes aparecer { from { opacity: 0; transform: translateY(6px); } }
+
+  /* ------------------------------------------- atualizado há / recarregar */
+  .atualizado { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                margin-top: 18px; font-size: 13px; color: var(--fraco); }
+  .atualizado button {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; font: inherit; font-size: 13px;
+    font-weight: 600; color: var(--tinta); background: var(--campo); border: none; border-radius: 999px; cursor: pointer;
+  }
+  .atualizado button.girando svg { animation: girar .8s linear infinite; }
+
+  /* ------------------------------------------------------- resumo do mês */
+  .mes { margin-top: 12px; padding: 16px 16px 14px 16px; border-radius: var(--r-card);
+         background: var(--papel); border: 1px solid var(--linha); box-shadow: var(--sombra); }
+  .mes h4 { margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: var(--grafite);
+            display: flex; justify-content: space-between; align-items: baseline; }
+  .mes h4 small { font-weight: 500; color: var(--fraco); }
+  .mes-nums { display: grid; grid-template-columns: .8fr 1.3fr 1.1fr; gap: 8px; }
+  .mes-nums b { display: block; font-size: 20px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mes-nums span { font-size: 12px; color: var(--grafite); }
+  .mes-comp { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--linha); font-size: 12.5px; color: var(--fraco); }
+
+  /* -------------------------------------------- revisão dos parados */
+  .stat.alerta { cursor: pointer; position: relative; }
+  .stat .revisar { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 12.5px;
+                   font-weight: 600; color: var(--vermelho); }
+  .progresso { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 13px; color: var(--grafite);
+               font-variant-numeric: tabular-nums; }
+  .progresso .trilho { flex: 1; height: 6px; border-radius: 3px; background: var(--campo); overflow: hidden; }
+  .progresso .trilho span { display: block; height: 100%; background: var(--vermelho); border-radius: 3px; transition: width .3s; }
+  .rev-cartao { padding: 18px; border-radius: var(--r-card); border: 1px solid var(--linha); background: var(--papel);
+                box-shadow: var(--sombra); animation: aparecer .25s ease-out both; }
+  .rev-cartao h3 { margin: 0 0 4px 0; font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+  .rev-cartao .sub { font-size: 14px; color: var(--grafite); margin-bottom: 12px; }
+  .rev-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .rev-linha b { font-size: 22px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .rev-nota { display: flex; gap: 8px; margin-top: 12px; padding: 10px 12px; border-radius: 12px;
+              background: var(--campo); font-size: 13px; color: var(--grafite); line-height: 1.4; }
+  .rev-nota svg { flex-shrink: 0; margin-top: 2px; }
+  .rev-pergunta { margin: 20px 0 10px 2px; font-size: 14px; font-weight: 600; }
+  .acoes .dupla-acao { display: flex; gap: 8px; }
+  .acoes .dupla-acao button { flex: 1; }
+  .links-rev { display: flex; justify-content: space-between; margin-top: 14px; }
+  .links-rev button { padding: 6px 2px; font: inherit; font-size: 14px; font-weight: 600; color: var(--grafite);
+                      background: none; border: none; cursor: pointer; }
+  .rev-fim { text-align: center; padding: 12px 0 8px 0; }
+  .rev-fim .selo { margin-bottom: 16px; }
+  .rev-fim h3 { margin: 0 0 6px 0; font-size: 20px; font-weight: 700; }
+  .rev-fim p { margin: 0 0 20px 0; color: var(--grafite); font-size: 14.5px; }
+  .conferido { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ok); font-weight: 600; }
+
+  /* ------------------------------------------------------------ desfazer */
+  .desfazer {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 8px 14px; font: inherit;
+    font-size: 14px; font-weight: 600; color: var(--grafite); background: var(--campo); border: none;
+    border-radius: 999px; cursor: pointer;
+  }
+  .desfazer:disabled { opacity: .6; }
+
+  /* ================================================================ escuro */
+  /* Segue o tema do celular. Superfícies vão para o carvão; botões e o balão
+     do usuário invertem (claros com texto escuro), como no estilo de
+     referência; o cartão do estoque continua escuro e ganha uma borda. */
+  /* Classe "escuro" no <html>: posta pelo script do <head> conforme o tema do
+     celular ou a escolha feita no botão do cabeçalho. Antes era só
+     @media (prefers-color-scheme), que não deixava escolher. */
+  html.escuro {
+      --carbono:  #F2F2F4;  --sobre-carbono: #141416;
+      --tinta:    #F2F2F4;  --grafite: #A3A3AA;  --fraco: #7E7E86;
+      --campo:    #1F1F23;  --campo2:  #2A2A30;  --linha: #2C2C32;
+      --papel:    #141416;  --folha:   #1A1A1D;  --heroi: #1E1E22;
+      --rosado:   #2A1D19;  --ok:      #4CC38A;
+      --topo:     rgba(20,20,22,.86);
+      --barra:    rgba(20,20,22,.96);  --barra0: rgba(20,20,22,0);
+      --risco:    #3A3A41;
+      --erro-bg:  #3A1518;  --erro-tx: #FFB4B8;
+      --sombra:   0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.25);
+    }
+  html.escuro body::before {
+      background: radial-gradient(120% 70% at 50% 115%,
+                  rgba(255,140,95,.22) 0%, rgba(255,140,95,.08) 40%, rgba(20,20,22,0) 72%);
+    }
+  html.escuro /* o logo foi feito para fundo escuro: no escuro, html.escuro sem o filtro */
+    .topo img { filter: none; }
+  html.escuro .heroi { border: 1px solid #2C2C32; }
+  html.escuro input:focus, html.escuro select:focus, html.escuro textarea:focus { box-shadow: 0 0 0 4px rgba(255,255,255,.06); }
+  html.escuro .abas button[aria-selected="true"] { background: #2E2E35; }
+  html.escuro /* campos e botões secundários dentro das folhas: um tom acima do fundo delas */
+    .folha { --campo: #27272D; --campo2: #303037; }
+  html.escuro .selo { box-shadow: 0 0 0 10px rgba(255,184,150,.10), 0 10px 30px rgba(0,0,0,.4); }
+  html.escuro /* ícones embutidos como imagem: inverte para aparecerem no escuro */
+    .campoBusca::after, html.escuro .sugestoes button::after { filter: invert(1); }
+  html.escuro .tiles button[aria-pressed="true"]::after { background-color: var(--vermelho); }
+  html.escuro mark { background: rgba(255,160,118,.28); }
+  html.escuro .selo-dias.atencao { background: #3A2A10; color: #F5C46B; }
+  html.escuro .selo-dias.critico { background: #3A1518; color: #FF9AA1; }
+  html.escuro .selo-dias.vendido { background: #12301F; color: #6FD6A0; }
+  html.escuro .ficha-topo .arte { color: #3A2D28; }
+  html.escuro .esq::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); }
+  html.escuro .veu { background: rgba(0,0,0,.55); }
+  html.escuro .avatar { box-shadow: 0 0 0 6px rgba(255,198,173,.12), 0 8px 22px rgba(0,0,0,.4); }
+  @media (prefers-reduced-motion: reduce) { .entrar, .rev-cartao { animation: none; } }
 </style>
 </head>
 <body>
@@ -543,6 +717,10 @@
   <div class="dentro">
     <img src="https://cairospecialbikes.com.br/cdn/shop/files/1_Sem_fundo.png?v=1766172200&width=600"
          alt="Cairo Special Bikes">
+    <button type="button" class="tema" id="botaoTema" onclick="alternarTema()" aria-label="Alternar modo claro e escuro">
+      <svg class="lua" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"></path></svg>
+      <svg class="sol" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"></path></svg>
+    </button>
     <button type="button" class="conta sem" id="botaoConta" onclick="abrirConta()" aria-label="Conta conectada">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"></circle><path d="M5 19.5c1.3-3.2 3.9-4.8 7-4.8s5.7 1.6 7 4.8"></path></svg>
     </button>
@@ -558,7 +736,15 @@
 <main>
 <div class="dentro">
 
-  <div id="carregando" class="carregando"><svg class="roda" width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><circle class="aro" cx="20" cy="20" r="17" stroke-width="2.5" stroke-dasharray="80 27"></circle><circle cx="20" cy="20" r="2.5" stroke-width="2"></circle><path d="M20 4.5v13M20 22.5v13M4.5 20h13M22.5 20h13M9 9l9.2 9.2M21.8 21.8 31 31M31 9l-9.2 9.2M18.2 21.8 9 31" stroke-width="1.2" opacity=".55"></path></svg><span id="textoCarregando">carregando a planilha…</span></div>
+  <div id="carregando" class="esqueleto" aria-busy="true">
+    <div class="esq esq-titulo"></div>
+    <div class="esq-tiles"><div class="esq"></div><div class="esq"></div></div>
+    <div class="esq esq-titulo"></div>
+    <div class="esq esq-rotulo"></div><div class="esq esq-campo"></div>
+    <div class="esq esq-rotulo"></div><div class="esq esq-campo"></div>
+    <div class="esq esq-rotulo"></div><div class="esq esq-campo"></div>
+    <div class="status"><svg class="roda" width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><circle class="aro" cx="20" cy="20" r="17" stroke-width="2.5" stroke-dasharray="80 27"></circle><circle cx="20" cy="20" r="2.5" stroke-width="2"></circle><path d="M20 4.5v13M20 22.5v13M4.5 20h13M22.5 20h13M9 9l9.2 9.2M21.8 21.8 31 31M31 9l-9.2 9.2M18.2 21.8 9 31" stroke-width="1.2" opacity=".55"></path></svg><span id="textoCarregando">carregando a planilha…</span></div>
+  </div>
 
   <!-- ============================================================ entrada -->
   <form id="formEntrada" class="oculto" onsubmit="enviarEntrada(event)">
@@ -629,7 +815,7 @@
           <div>
             <label for="valor">Valor combinado</label>
             <div class="moeda"><span>R$</span>
-              <input id="valor" type="number" inputmode="decimal" step="0.01" min="0" required placeholder="24900"
+              <input id="valor" type="text" inputmode="decimal" autocomplete="off" required placeholder="24900"
                      oninput="mostrarValor('valor', 'valorFmt')">
             </div>
             <div class="dica valorFmt" id="valorFmt"></div>
@@ -684,7 +870,7 @@
           <div>
             <label for="valorSaida">Valor</label>
             <div class="moeda"><span>R$</span>
-              <input id="valorSaida" type="number" inputmode="decimal" step="0.01" min="0"
+              <input id="valorSaida" type="text" inputmode="decimal" autocomplete="off"
                      oninput="mostrarValor('valorSaida', 'valorSaidaFmt')">
             </div>
             <div class="dica valorFmt" id="valorSaidaFmt"></div>
@@ -702,6 +888,22 @@
 
   <!-- ============================================================ estoque -->
   <div id="telaEstoque" class="oculto">
+    <div class="atualizado">
+      <span id="textoAtualizado">—</span>
+      <button type="button" id="botaoAtualizar" onclick="atualizarAgora()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg>
+        Atualizar
+      </button>
+    </div>
+    <div class="mes" id="cartaoMes">
+      <h4><span id="tituloMes">Vendas do mês</span><small id="subMes"></small></h4>
+      <div class="mes-nums">
+        <div><b id="mesVendas">—</b><span>vendas</span></div>
+        <div><b id="mesReceita">—</b><span>receita</span></div>
+        <div><b id="mesComissao">—</b><span>comissão da loja</span></div>
+      </div>
+      <div class="mes-comp" id="mesComp"></div>
+    </div>
     <div class="heroi">
       <svg class="arte" width="190" height="114" viewBox="0 0 120 72" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="26" cy="50" r="18"></circle><circle cx="94" cy="50" r="18"></circle><circle cx="26" cy="50" r="2"></circle><circle cx="94" cy="50" r="2"></circle><path d="M26 50 47 23l9 27Z"></path><path d="M47 23h31L56 50"></path><path d="m78 23 16 27"></path><path d="m78 23-1.8-6.5"></path><path d="M73.5 16.5h7c3 0 4 2.5 3 5"></path><path d="m47 23-1-4.5"></path><path d="M40.5 18.5h11"></path><circle cx="56" cy="50" r="4"></circle><path d="m56 50 3 5"></path></svg>
       <span>Valor em estoque</span>
@@ -709,12 +911,16 @@
       <small id="stItens"></small>
     </div>
     <div class="stats">
-      <div class="stat alerta">
+      <div class="stat alerta" role="button" tabindex="0" onclick="abrirRevisao()"
+           onkeydown="if(event.key==='Enter')abrirRevisao()" aria-label="Revisar itens parados há 90 dias ou mais">
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"></path><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path></svg>Parados 90+ dias</span>
         <b id="stParados">—</b><small id="stParadosValor"></small>
+        <span class="revisar" id="linkRevisar">Revisar
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"></path></svg>
+        </span>
       </div>
       <div class="stat">
-        <span>Tempo mediano</span>
+        <span>Idade mediana</span>
         <b id="stMediana">—</b><small id="stMedianaObs"></small>
       </div>
     </div>
@@ -763,6 +969,10 @@
     </div>
     <h2 id="tituloOk">Registrado</h2>
     <p id="textoOk"></p>
+    <button type="button" class="desfazer oculto" id="botaoDesfazer" onclick="desfazer()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"></path><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"></path></svg>
+      Desfazer
+    </button>
     <button type="button" class="denovo" onclick="voltar()">Registrar outro</button>
     <button type="button" class="denovo" id="botaoIrOutra" onclick="irOutra()"></button>
     <div class="estrada"><svg class="arte" width="150" height="90" viewBox="0 0 120 72" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="26" cy="50" r="18"></circle><circle cx="94" cy="50" r="18"></circle><circle cx="26" cy="50" r="2"></circle><circle cx="94" cy="50" r="2"></circle><path d="M26 50 47 23l9 27Z"></path><path d="M47 23h31L56 50"></path><path d="m78 23 16 27"></path><path d="m78 23-1.8-6.5"></path><path d="M73.5 16.5h7c3 0 4 2.5 3 5"></path><path d="m47 23-1-4.5"></path><path d="M40.5 18.5h11"></path><circle cx="56" cy="50" r="4"></circle><path d="m56 50 3 5"></path></svg></div>
@@ -812,9 +1022,11 @@ var OPCOES = null, ABA = 'entrada', TIPO = 'Bicicleta', STATUS = 'Vendido';
 
 function el(id) { return document.getElementById(id); }
 function opcoes(sel, vals, vazio) {
+  var escolhido = sel.value;
   sel.innerHTML = '';
   if (vazio) sel.appendChild(new Option(vazio, ''));
   vals.forEach(function (v) { sel.appendChild(new Option(v, v)); });
+  if (escolhido) sel.value = escolhido;   // recriar a lista não apaga a escolha
 }
 function brl(n) { return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0 }); }
 function brl2(n) { return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -826,15 +1038,44 @@ function brl2(n) { return Number(n).toLocaleString('pt-BR', { minimumFractionDig
  * fáceis de confundir de relance — um zero a mais ou a menos é a diferença
  * entre a bike e a roda. Na saída, compara também com o valor combinado.
  */
+/**
+ * Lê o valor como o Cairo digita, com a mesma regra do transform.fmt_valor do
+ * pipeline: ponto ou vírgula seguidos de exatamente 3 dígitos são milhar.
+ *
+ * O campo era type=number, e o navegador lia "24.900" como 24,9: o mesmo bug
+ * de escala que já tinha corrompido a base, agora entrando pela tela.
+ */
+var VALOR_MIN = 10, VALOR_MAX = 1000000;
+function lerValor(t) {
+  var s = String(t === undefined || t === null ? '' : t).replace(/R\$|\s/g, '');
+  if (!s) return NaN;
+  if (s.indexOf('.') >= 0 && s.indexOf(',') >= 0) {
+    s = s.lastIndexOf(',') > s.lastIndexOf('.') ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(s) || /^\d{1,3}(,\d{3})+$/.test(s)) {
+    s = s.replace(/[.,]/g, '');
+  } else {
+    s = s.replace(',', '.');
+  }
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+/** Mensagem de erro do valor, ou '' se estiver ok. */
+function problemaValor(t, obrigatorio) {
+  if (String(t || '').trim() === '') return obrigatorio ? 'Falta o valor.' : '';
+  var n = lerValor(t);
+  if (isNaN(n)) return 'Valor ilegível. Digite só números: 24900 ou 24.900,00.';
+  if (n < VALOR_MIN || n > VALOR_MAX) return 'O valor precisa estar entre R$ 10 e R$ 1.000.000.';
+  return '';
+}
+
 function mostrarValor(idCampo, idDica) {
-  var v = el(idCampo).value, alvo = el(idDica);
+  var v = lerValor(el(idCampo).value), alvo = el(idDica);
   alvo.textContent = '';
-  if (v === '' || isNaN(Number(v))) return;
+  if (isNaN(v)) return;
   alvo.appendChild(document.createTextNode('R$ ' + brl2(v)));
   if (idCampo !== 'valorSaida') return;
   var o = el('item').selectedOptions[0];
   var combinado = o && o.value ? Number(o.dataset.valor) : NaN;
-  var dif = Number(v) - combinado;
+  var dif = v - combinado;
   if (!isNaN(dif) && dif !== 0) {
     var s = document.createElement('span');
     s.className = dif < 0 ? 'menos' : 'mais';
@@ -869,6 +1110,9 @@ function aplicarOpcoes(d) {
   if (donoEscolhido) dono.value = donoEscolhido;
 
   REGISTROS = d.registros || [];
+  CONFERENCIAS = d.conferencias || {};
+  ULTIMA = Date.now();
+  mostrarAtualizado();
   REGISTROS.forEach(function (r) { r.dias = r.entrada ? diasEntre(r.entrada, d.hoje) : null; });
   var estoque = REGISTROS.filter(function (r) { return r.status === 'Em estoque'; })
     .sort(function (a, b) { return a.item.localeCompare(b.item); });
@@ -884,8 +1128,11 @@ function aplicarOpcoes(d) {
   });
   if (itemEscolhido) item.value = itemEscolhido;
 
-  el('dataEntrada').value = d.hoje;
-  el('dataSaida').value = d.hoje;
+  // Só preenche a data se estiver vazia: a atualização automática apagava a
+  // data que o Cairo tinha escolhido no meio do preenchimento.
+  if (!el('dataEntrada').value) el('dataEntrada').value = d.hoje;
+  if (!el('dataSaida').value) el('dataSaida').value = d.hoje;
+  ['dataEntrada', 'dataSaida'].forEach(function (id) { el(id).max = d.hoje; el(id).min = '2020-01-01'; });
   mostrarConta();
   atualizarRotulos();
   if (ABA === 'estoque') desenharEstoque();
@@ -919,7 +1166,12 @@ function trocar(qual) {
   el('abaEstoque').setAttribute('aria-selected', qual === 'estoque');
   el('abaChat').setAttribute('aria-selected', chat);
   if (form) el('botaoAcao').textContent = qual === 'entrada' ? 'Registrar entrada' : 'Registrar';
-  if (qual === 'estoque') desenharEstoque();
+  if (qual === 'estoque') desenharEstoque(true);
+  // entrar suave na tela nova
+  var tela = { entrada: 'formEntrada', saida: 'formSaida', estoque: 'telaEstoque', chat: 'telaChat' }[qual];
+  if (tela) { el(tela).classList.remove('entrar'); void el(tela).offsetWidth; el(tela).classList.add('entrar'); }
+  DESFAZER = null;
+  el('botaoDesfazer').classList.add('oculto');
   window.scrollTo(0, 0);
 }
 
@@ -944,7 +1196,9 @@ function bolha(quem, texto, classe) {
 
 function enviarPergunta() {
   var txt = el('pergunta').value.trim();
-  if (!txt) return;
+  // o botão já ficava desativado, mas o Enter disparava uma segunda pergunta
+  // em paralelo e as duas respostas brigavam pelo mesmo histórico
+  if (!txt || el('botaoChat').disabled) return;
 
   var vazio = el('conversa').querySelector('.vazio');
   if (vazio) vazio.remove();
@@ -1013,7 +1267,8 @@ function registro(id) {
 var tempoToast;
 function aviso(txt) {
   var t = el('toast');
-  t.textContent = txt; t.classList.add('visivel');
+  // "Exception: ..." é o jeito do Apps Script embrulhar o erro; o Cairo só precisa do texto
+  t.textContent = String(txt).replace(/(^|: )Exception: /g, '$1'); t.classList.add('visivel');
   clearTimeout(tempoToast);
   tempoToast = setTimeout(function () { t.classList.remove('visivel'); }, 2600);
 }
@@ -1141,7 +1396,10 @@ function abrirBusca(idSelect) {
       }
       // Cadastrar fica DEPOIS dos resultados: no topo, convidava a criar de
       // novo quem já estava logo abaixo — a origem dos donos duplicados.
-      if (cfg.criar) {
+      var exato = termo && opcoesSel.some(function (o) {
+        return sem(o.textContent).replace(/\s+/g, ' ').trim() === sem(termo).replace(/\s+/g, ' ').trim();
+      });
+      if (cfg.criar && !exato) {
         var novo = criar('button', 'opcao criar');
         novo.type = 'button';
         novo.appendChild(criar('span', 'ini', '+'));
@@ -1182,22 +1440,66 @@ function mediana(xs) {
   return o.length % 2 ? o[m] : Math.round((o[m - 1] + o[m]) / 2);
 }
 
-function desenharEstoque() {
+/** O número conta até o valor ao abrir a aba. Sem animação se o celular pede menos movimento. */
+function contar(elm, alvo, fmt, animar) {
+  if (!animar || window.matchMedia('(prefers-reduced-motion: reduce)').matches || !isFinite(alvo)) {
+    elm.textContent = fmt(alvo); return;
+  }
+  var t0 = null, dur = 650;
+  function passo(t) {
+    if (t0 === null) t0 = t;
+    var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    elm.textContent = fmt(Math.round(alvo * e));
+    if (k < 1) requestAnimationFrame(passo);
+  }
+  requestAnimationFrame(passo);
+}
+
+// mesma regra de comissão da vw_vendas: 8% acima de 30 mil, 10% de 10 a 30 mil, 12% abaixo
+function comissao(v) { return v * (v > 30000 ? 0.08 : v >= 10000 ? 0.10 : 0.12); }
+var MESES_LONGOS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
+                    'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+function desenharMes(animar) {
+  if (!OPCOES) return;
+  var hoje = OPCOES.hoje, mes = hoje.slice(0, 7);
+  var d = new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)) - 2, 1);
+  var anterior = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  function vendasDe(m) {
+    return REGISTROS.filter(function (r) { return r.status === 'Vendido' && r.saida && r.saida.slice(0, 7) === m; });
+  }
+  var xs = vendasDe(mes), ant = vendasDe(anterior);
+  var soma = function (ys) { return ys.reduce(function (t, r) { return t + r.valor; }, 0); };
+  var com = xs.reduce(function (t, r) { return t + comissao(r.valor); }, 0);
+  el('tituloMes').textContent = 'Vendas de ' + MESES_LONGOS[Number(mes.slice(5, 7)) - 1];
+  el('subMes').textContent = 'até hoje, dia ' + Number(hoje.slice(8, 10));
+  contar(el('mesVendas'), xs.length, String, animar);
+  contar(el('mesReceita'), soma(xs), function (n) { return 'R$ ' + brl(n); }, animar);
+  contar(el('mesComissao'), Math.round(com), function (n) { return 'R$ ' + brl(n); }, animar);
+  el('mesComp').textContent = MESES_LONGOS[Number(anterior.slice(5, 7)) - 1].replace(/^./, function (c) { return c.toUpperCase(); }) +
+    ' inteiro: ' + ant.length + (ant.length === 1 ? ' venda' : ' vendas') + ' · R$ ' + brl(soma(ant));
+}
+
+function desenharEstoque(animar) {
   var est = REGISTROS.filter(function (r) { return r.status === 'Em estoque'; });
   var parados = est.filter(function (r) { return r.dias !== null && r.dias >= LIMITE_PARADO; });
   var soma = function (xs) { return xs.reduce(function (t, r) { return t + r.valor; }, 0); };
   var bikes = est.filter(function (r) { return r.tipo === 'Bicicleta'; }).length;
 
-  el('stValor').textContent = 'R$ ' + brl(soma(est));
+  desenharMes(animar);
+  contar(el('stValor'), soma(est), function (n) { return 'R$ ' + brl(n); }, animar);
   el('stItens').textContent = est.length + (est.length === 1 ? ' item' : ' itens') +
     ' · ' + bikes + (bikes === 1 ? ' bike' : ' bikes') + ', ' + (est.length - bikes) + ' componentes';
-  el('stParados').textContent = parados.length;
+  contar(el('stParados'), parados.length, String, animar);
+  var pend = pendentesRevisao().length;
+  el('linkRevisar').firstChild.textContent = pend ? 'Revisar ' + pend + (pend === 1 ? ' item ' : ' itens ') : 'Tudo conferido ';
   el('stParadosValor').textContent = 'R$ ' + brl(soma(parados)) + ' parados';
   var comData = est.filter(function (r) { return r.dias !== null; }).map(function (r) { return r.dias; });
   var med = mediana(comData);
-  el('stMediana').textContent = med === null ? '—' : med + (med === 1 ? ' dia' : ' dias');
+  if (med === null) el('stMediana').textContent = '—';
+  else contar(el('stMediana'), med, function (n) { return n + (n === 1 ? ' dia' : ' dias'); }, animar);
   var semData = est.length - comData.length;
-  el('stMedianaObs').textContent = semData ? semData + ' sem data de entrada' : 'desde a entrada';
+  el('stMedianaObs').textContent = 'do estoque atual' + (semData ? ' · ' + semData + ' sem data' : '');
 
   // barras por faixa de tempo
   var maior = 1, contagens = FAIXAS.map(function (f) {
@@ -1295,6 +1597,7 @@ function seloDias(r) {
   var s;
   if (r.status === 'Em estoque') {
     if (r.dias === null) return criar('span', 'selo-dias', 'sem data');
+    if (r.dias < 0) return criar('span', 'selo-dias atencao', 'entrada no futuro?');
     var critico = r.dias >= LIMITE_PARADO;
     s = criar('span', 'selo-dias' + (critico ? ' critico' : r.dias >= 60 ? ' atencao' : ''));
     // parado leva ícone e texto, não só a cor
@@ -1346,6 +1649,7 @@ function abrirDetalhe(id) {
       linha('Situação', r.status + (r.saida ? ' em ' + dataBR(r.saida) : ''));
       if (r.status === 'Vendido') linha('Canal', r.loja || '—');
       if (r.obs) linha('Observações', r.obs);
+      if (r.status === 'Em estoque' && CONFERENCIAS[r.id]) linha('Conferido na loja', dataBR(CONFERENCIAS[r.id]));
       linha('Consignação', '#' + r.id);
       corpo.appendChild(d);
 
@@ -1366,9 +1670,198 @@ function abrirDetalhe(id) {
   });
 }
 
+// ================================================================ revisão
+/**
+ * Passa pelos itens parados há 90 dias ou mais, um por vez, perguntando o que
+ * aconteceu com cada um. Muitos são de antes de abril/2026, com data de
+ * entrada estimada na migração — e alguns já saíram sem ter sido fechados.
+ * Item conferido nos últimos 30 dias não volta para a fila.
+ */
+var CONFERENCIAS = {}, REV = null;
+
+function pendentesRevisao() {
+  if (!OPCOES) return [];
+  return REGISTROS.filter(function (r) {
+    if (r.status !== 'Em estoque' || r.dias === null || r.dias < LIMITE_PARADO) return false;
+    var c = CONFERENCIAS[r.id];
+    return !(c && diasEntre(c, OPCOES.hoje) < 30);
+  }).sort(function (a, b) { return b.dias - a.dias; });
+}
+
+/** Data na borda do mês e antes do corte: provável estimativa da migração. */
+function dataEstimada(iso) {
+  if (!iso || iso >= '2026-04-01') return false;
+  var p = iso.split('-'), dia = Number(p[2]);
+  return dia === 1 || dia === new Date(Number(p[0]), Number(p[1]), 0).getDate();
+}
+
+function abrirRevisao() {
+  REV = { lista: pendentesRevisao(), i: 0, conferidos: 0, pulados: 0 };
+  abrirFolha({ titulo: 'Revisar parados', alta: true, desenhar: desenharRevisao,
+               aoFechar: function () { if (ABA === 'estoque') desenharEstoque(); } });
+}
+
+function redesenharFolha() {
+  if (!FOLHA) return;
+  el('corpoFolha').innerHTML = '';
+  FOLHA.desenhar(el('corpoFolha'), '');
+}
+
+function desenharRevisao(corpo) {
+  var total = REV.lista.length;
+  if (REV.i >= total) {
+    var fim = criar('div', 'rev-fim');
+    fim.innerHTML = '<div class="selo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg></div>';
+    fim.appendChild(criar('h3', '', total ? 'Revisão concluída' : 'Nada para revisar'));
+    fim.appendChild(criar('p', '', total
+      ? REV.conferidos + (REV.conferidos === 1 ? ' conferido' : ' conferidos') + ' · ' + REV.pulados + (REV.pulados === 1 ? ' pulado' : ' pulados')
+      : 'Todos os itens parados foram conferidos nos últimos 30 dias.'));
+    var a = criar('div', 'acoes'), b = criar('button', 'primario', 'Fechar'); b.type = 'button';
+    b.onclick = fecharTudo; a.appendChild(b); fim.appendChild(a);
+    corpo.appendChild(fim);
+    return;
+  }
+  var r = REV.lista[REV.i];
+
+  var pr = criar('div', 'progresso');
+  pr.appendChild(criar('span', '', (REV.i + 1) + ' de ' + total));
+  var tr = criar('span', 'trilho'), en = criar('span'); en.style.width = (REV.i / total * 100) + '%';
+  tr.appendChild(en); pr.appendChild(tr);
+  corpo.appendChild(pr);
+
+  var c = criar('div', 'rev-cartao');
+  c.appendChild(criar('h3', '', r.item || '(sem descrição)'));
+  c.appendChild(criar('div', 'sub', (r.dono || 'sem proprietário') + ' · entrou em ' + dataBR(r.entrada)));
+  var l = criar('div', 'rev-linha');
+  l.appendChild(criar('b', '', 'R$ ' + brl(r.valor)));
+  l.appendChild(seloDias(r));
+  c.appendChild(l);
+  if (dataEstimada(r.entrada)) {
+    var n = criar('div', 'rev-nota');
+    n.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
+    n.appendChild(criar('span', '', 'Data de entrada provavelmente estimada na migração das planilhas antigas: o tempo real em loja pode ser outro.'));
+    c.appendChild(n);
+  }
+  corpo.appendChild(c);
+  corpo.appendChild(criar('div', 'rev-pergunta', 'Este item ainda está na loja?'));
+
+  var ac = criar('div', 'acoes');
+  var aqui = criar('button', 'primario', 'Sim, ainda está aqui'); aqui.type = 'button';
+  aqui.onclick = function () {
+    aqui.disabled = true; aqui.innerHTML = '<span class="giro"></span>Registrando…';
+    google.script.run
+      .withSuccessHandler(function () {
+        CONFERENCIAS[r.id] = OPCOES.hoje; REV.conferidos++; REV.i++; redesenharFolha();
+      })
+      .withFailureHandler(function (e) { aqui.disabled = false; aqui.textContent = 'Sim, ainda está aqui'; aviso(e.message); })
+      .registrarConferencia(r.id);
+  };
+  ac.appendChild(aqui);
+  var dupla = criar('div', 'dupla-acao');
+  [['Vendido', 'Já vendeu'], ['Retirado', 'Dono retirou']].forEach(function (o) {
+    var b = criar('button', 'secundario', o[1]); b.type = 'button';
+    b.onclick = function () {
+      fecharTudo(); trocar('saida');
+      el('item').value = r.id; preencherValor(); escolherStatus(o[0]);
+      aviso('Confira a data e o valor e registre');
+    };
+    dupla.appendChild(b);
+  });
+  ac.appendChild(dupla);
+  corpo.appendChild(ac);
+
+  var links = criar('div', 'links-rev');
+  var corr = criar('button', '', 'Corrigir dados'); corr.type = 'button';
+  corr.onclick = function () { abrirCorrecao(r.id); };
+  var pular = criar('button', '', 'Pular →'); pular.type = 'button';
+  pular.onclick = function () { REV.pulados++; REV.i++; redesenharFolha(); };
+  links.appendChild(corr); links.appendChild(pular);
+  corpo.appendChild(links);
+}
+
+// ========================================================== atualização
+/**
+ * Se alguém mexe direto na planilha, o app só vê depois de recarregar.
+ * Mostra há quanto tempo os dados foram lidos, atualiza com um toque e, ao
+ * voltar para o app depois de 5 minutos fora, atualiza sozinho.
+ */
+var ULTIMA = 0, ATUALIZANDO = false;
+
+function mostrarAtualizado() {
+  if (!ULTIMA) return;
+  var min = Math.floor((Date.now() - ULTIMA) / 60000), t;
+  if (min < 1) t = 'Atualizado agora';
+  else if (min < 60) t = 'Atualizado há ' + min + ' min';
+  else { var d = new Date(ULTIMA); t = 'Atualizado às ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  el('textoAtualizado').textContent = t;
+}
+setInterval(mostrarAtualizado, 30000);
+
+function atualizarAgora(silencioso) {
+  if (ATUALIZANDO) return;
+  ATUALIZANDO = true;
+  el('botaoAtualizar').classList.add('girando');
+  google.script.run
+    .withSuccessHandler(function (d) {
+      ATUALIZANDO = false; el('botaoAtualizar').classList.remove('girando');
+      aplicarOpcoes(d);
+      if (!silencioso) aviso('Dados atualizados');
+    })
+    .withFailureHandler(function (e) {
+      ATUALIZANDO = false; el('botaoAtualizar').classList.remove('girando');
+      if (!silencioso) aviso('Não deu para atualizar: ' + e.message);
+    })
+    .carregarOpcoes();
+}
+
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && ULTIMA && Date.now() - ULTIMA > 5 * 60000 && !FOLHA) {
+    atualizarAgora(true);
+  }
+});
+
+// ============================================================== desfazer
+/**
+ * Logo depois de registrar, a tela de sucesso oferece "Desfazer". O servidor
+ * só desfaz se o registro ainda estiver como acabou de ser gravado; depois
+ * disso, o caminho é a correção.
+ */
+var DESFAZER = null;
+
+function desfazer() {
+  if (!DESFAZER) return;
+  var b = el('botaoDesfazer'), d = DESFAZER;
+  b.disabled = true;
+  var ok = function (msg) {
+    b.disabled = false;
+    DESFAZER = null;
+    aviso('↩ ' + msg);
+    // volta ao formulário como estava, para corrigir e registrar de novo
+    el('telaOk').classList.add('oculto');
+    trocar(ABA);
+    recarregarOpcoes();
+  };
+  var falhou = function (e) { b.disabled = false; aviso(e.message); };
+  if (d.tipo === 'entrada') google.script.run.withSuccessHandler(ok).withFailureHandler(falhou).desfazerEntrada(d.dados);
+  else google.script.run.withSuccessHandler(ok).withFailureHandler(falhou).desfazerSaida(d.dados);
+}
+
+// ================================================================= tema
+function alternarTema() {
+  var t = document.documentElement.classList.contains('escuro') ? 'claro' : 'escuro';
+  TEMA_SALVO = t;
+  aplicarTema(t);
+  try { localStorage.setItem('tema', t); } catch (e) {}
+  // também na conta Google: o armazenamento do navegador pode ser apagado
+  // (o Safari limpa dados de sites em iframe com frequência)
+  try { google.script.run.salvarTema(t); } catch (e) {}
+}
+
 // ================================================================ conta
 function mostrarConta() {
   var u = (OPCOES && OPCOES.usuario) || {}, b = el('botaoConta');
+  // tema escolhido em outro aparelho, quando este não tem escolha própria
+  if (u.tema && !TEMA_SALVO) { TEMA_SALVO = u.tema; aplicarTema(u.tema); try { localStorage.setItem('tema', u.tema); } catch (e) {} }
   if (!u.email) return;
   b.classList.remove('sem');
   b.textContent = u.email[0].toUpperCase();
@@ -1516,6 +2009,7 @@ function abrirCorrecao(id) {
         return function (w) {
           var i = criar(tipo === 'textarea' ? 'textarea' : 'input');
           if (tipo !== 'textarea') i.type = tipo;
+          if (tipo === 'date') { i.max = OPCOES.hoje; i.min = '2020-01-01'; }
           i.id = 'cor_' + chave; i.value = dep[chave];
           if (extra) extra(i);
           i.oninput = function () { dep[chave] = i.value; marcar(); };
@@ -1557,7 +2051,7 @@ function abrirCorrecao(id) {
       var dupla = criar('div', 'dupla');
       campo('valor', 'Valor', function (w) {
         var m = criar('div', 'moeda'); m.appendChild(criar('span', '', 'R$'));
-        entrada('valor', 'number', function (i) { i.inputMode = 'decimal'; i.step = '0.01'; i.min = '0'; })(m);
+        entrada('valor', 'text', function (i) { i.inputMode = 'decimal'; i.autocomplete = 'off'; })(m);
         w.appendChild(m);
       });
       campo('entrada', 'Data de entrada', entrada('entrada', 'date'));
@@ -1591,7 +2085,7 @@ function abrirCorrecao(id) {
       function marcar() {
         var n = 0;
         ['status', 'item', 'donoId', 'valor', 'entrada', 'saida', 'loja', 'obs'].forEach(function (k) {
-          var mudou = String(dep[k]) !== String(antes[k]);
+          var mudou = k === 'valor' ? lerValor(dep[k]) !== Number(antes[k]) : String(dep[k]) !== String(antes[k]);
           if (mudou) n++;
           var w = f.querySelector('[data-campo="' + k + '"]');
           if (w) w.classList.toggle('mudou', mudou);
@@ -1610,9 +2104,19 @@ function salvarCorrecao(antes, dep) {
   b.disabled = true; b.innerHTML = '<span class="giro"></span>Salvando…';
   var depois = {};
   ['status', 'item', 'donoId', 'valor', 'entrada', 'saida', 'loja', 'obs'].forEach(function (k) { depois[k] = dep[k]; });
+  var pv = problemaValor(dep.valor, true);
+  if (pv) {
+    b.disabled = false; b.textContent = 'Salvar correção';
+    el('resumoMudancas').textContent = pv; el('resumoMudancas').style.color = 'var(--vermelho)';
+    return;
+  }
+  depois.valor = String(lerValor(dep.valor));
   google.script.run
     .withSuccessHandler(function (msg) {
-      fecharTudo();
+      // corrigido de dentro da revisão dos parados: volta para ela, no próximo item
+      var naRevisao = PILHA.length && PILHA[PILHA.length - 1].desenhar === desenharRevisao;
+      if (naRevisao) { fecharFolha(); REV.i++; redesenharFolha(); }
+      else fecharTudo();
       aviso('✓ ' + msg);
       recarregarOpcoes();
     })
@@ -1658,6 +2162,9 @@ function preencherValor() {
   } else {
     el('dicaItem').textContent = ''; el('valorSaida').value = '';
   }
+  // a venda não pode ser anterior à entrada do item
+  var r = o && o.value ? registro(o.value) : null;
+  el('dataSaida').min = r && r.entrada ? r.entrada : '2020-01-01';
   mostrarValor('valorSaida', 'valorSaidaFmt');
   atualizarRotulos();
 }
@@ -1670,6 +2177,9 @@ function erro(id, txt) {
 function ocupado(sim) {
   var b = el('botaoAcao');
   b.disabled = sim;
+  // Sem isto, trocar de aba durante a gravação mostrava "Venda registrada"
+  // por cima do Estoque, com o título da aba errada.
+  [].forEach.call(document.querySelectorAll('.abas button'), function (t) { t.disabled = sim; });
   if (sim) b.innerHTML = '<span class="giro"></span>Gravando…';
   else b.textContent = ABA === 'entrada' ? 'Registrar entrada' : 'Registrar';
 }
@@ -1682,7 +2192,9 @@ function sucesso(msg) {
   el('tituloOk').textContent = ABA === 'entrada' ? 'Entrada registrada'
                              : STATUS === 'Vendido' ? 'Venda registrada' : 'Retirada registrada';
   el('botaoIrOutra').textContent = ABA === 'entrada' ? 'Fechar um item' : 'Registrar uma entrada';
+  el('botaoDesfazer').classList.toggle('oculto', !DESFAZER);
   el('telaOk').classList.remove('oculto');
+  el('telaOk').classList.remove('entrar'); void el('telaOk').offsetWidth; el('telaOk').classList.add('entrar');
   window.scrollTo(0, 0);
 }
 
@@ -1722,10 +2234,24 @@ function enviarEntrada(ev) {
   if (dono === 'NOVO' && !el('donoNovo').value.trim())
     return erro('avisoEntrada', 'Digite o nome do novo proprietário.');
 
+  var pv = problemaValor(el('valor').value, true);
+  if (pv) return erro('avisoEntrada', pv);
+  // mesmo nome de quem já existe: escolher na lista, não duplicar
+  if (dono === 'NOVO') {
+    var igual = OPCOES.donos.filter(function (p) { return sem(p.nome).replace(/\s+/g, ' ').trim() === sem(el('donoNovo').value).replace(/\s+/g, ' ').trim(); })[0];
+    if (igual) return erro('avisoEntrada', 'Já existe o proprietário "' + igual.nome + '". Escolha na lista em vez de cadastrar de novo.');
+  }
+
   var bike = TIPO === 'Bicicleta';
   ocupado(true);
   google.script.run
-    .withSuccessHandler(function (msg) { ocupado(false); sucesso(msg); recarregarOpcoes(); })
+    .withSuccessHandler(function (r) {
+      ocupado(false);
+      // o servidor novo devolve { msg, id, ... }; o antigo, só o texto
+      if (r && typeof r === 'object') { DESFAZER = { tipo: 'entrada', dados: r }; sucesso(r.msg); }
+      else { DESFAZER = null; sucesso(r); }
+      recarregarOpcoes();
+    })
     .withFailureHandler(function (e) { ocupado(false); erro('avisoEntrada', e.message); })
     .registrarEntrada({
       tipo: TIPO,
@@ -1740,7 +2266,7 @@ function enviarEntrada(ev) {
       donoNovo: dono === 'NOVO' ? el('donoNovo').value.trim() : '',
       donoContato: el('donoContato').value.trim(),
       donoCidade: el('donoCidade').value.trim(),
-      valor: el('valor').value,
+      valor: String(lerValor(el('valor').value)),
       dataEntrada: el('dataEntrada').value,
       observacoes: el('obsEntrada').value.trim()
     });
@@ -1749,11 +2275,16 @@ function enviarEntrada(ev) {
 function enviarSaida(ev) {
   ev.preventDefault();
   if (!el('item').value) return erro('avisoSaida', 'Escolha o item.');
+  var pv = problemaValor(el('valorSaida').value, false);
+  if (pv) return erro('avisoSaida', pv);
 
+  // guarda como o item estava, para o "Desfazer" restaurar valor e observação
+  var antes = registro(el('item').value), statusSaida = STATUS;
   ocupado(true);
   google.script.run
     .withSuccessHandler(function (msg) {
       ocupado(false);
+      DESFAZER = antes ? { tipo: 'saida', dados: { id: antes.id, status: statusSaida, valor: antes.valor, obs: antes.obs } } : null;
       sucesso(msg);
       recarregarOpcoes();   // o item sai da lista de estoque na hora
     })
@@ -1762,7 +2293,7 @@ function enviarSaida(ev) {
       idCons: el('item').value,
       status: STATUS,
       canal: el('canal').value,
-      valor: el('valorSaida').value,
+      valor: el('valorSaida').value.trim() ? String(lerValor(el('valorSaida').value)) : '',
       dataSaida: el('dataSaida').value,
       observacoes: el('obsSaida').value.trim()
     });
@@ -1788,8 +2319,9 @@ google.script.run.withSuccessHandler(function (d) {
   el('carregando').classList.add('oculto');
   el('formEntrada').classList.remove('oculto');
   el('barra').classList.remove('oculto');
+  el('formEntrada').classList.add('entrar');
 }).withFailureHandler(function (e) {
-  el('carregando').classList.add('falhou');
+  el('carregando').className = 'carregando falhou';
   el('carregando').textContent = 'Erro ao carregar: ' + e.message;
 }).carregarOpcoes();
 </script>
