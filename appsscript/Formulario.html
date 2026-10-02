@@ -101,6 +101,7 @@
     transition: background .2s, color .2s, box-shadow .2s;
   }
   .abas button[aria-selected="true"] { color: var(--tinta); background: var(--papel); box-shadow: var(--sombra); }
+  .abas button:disabled { opacity: .45; cursor: default; }
   .abas button[aria-selected="true"] svg { color: var(--vermelho); }
   .abas button svg { flex-shrink: 0; }
   /* em tela estreita, só a aba ativa mostra o ícone: com quatro abas não cabe tudo */
@@ -772,7 +773,7 @@
           <div>
             <label for="valor">Valor combinado</label>
             <div class="moeda"><span>R$</span>
-              <input id="valor" type="number" inputmode="decimal" step="0.01" min="0" required placeholder="24900"
+              <input id="valor" type="text" inputmode="decimal" autocomplete="off" required placeholder="24900"
                      oninput="mostrarValor('valor', 'valorFmt')">
             </div>
             <div class="dica valorFmt" id="valorFmt"></div>
@@ -827,7 +828,7 @@
           <div>
             <label for="valorSaida">Valor</label>
             <div class="moeda"><span>R$</span>
-              <input id="valorSaida" type="number" inputmode="decimal" step="0.01" min="0"
+              <input id="valorSaida" type="text" inputmode="decimal" autocomplete="off"
                      oninput="mostrarValor('valorSaida', 'valorSaidaFmt')">
             </div>
             <div class="dica valorFmt" id="valorSaidaFmt"></div>
@@ -979,9 +980,11 @@ var OPCOES = null, ABA = 'entrada', TIPO = 'Bicicleta', STATUS = 'Vendido';
 
 function el(id) { return document.getElementById(id); }
 function opcoes(sel, vals, vazio) {
+  var escolhido = sel.value;
   sel.innerHTML = '';
   if (vazio) sel.appendChild(new Option(vazio, ''));
   vals.forEach(function (v) { sel.appendChild(new Option(v, v)); });
+  if (escolhido) sel.value = escolhido;   // recriar a lista não apaga a escolha
 }
 function brl(n) { return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0 }); }
 function brl2(n) { return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -993,15 +996,44 @@ function brl2(n) { return Number(n).toLocaleString('pt-BR', { minimumFractionDig
  * fáceis de confundir de relance — um zero a mais ou a menos é a diferença
  * entre a bike e a roda. Na saída, compara também com o valor combinado.
  */
+/**
+ * Lê o valor como o Cairo digita, com a mesma regra do transform.fmt_valor do
+ * pipeline: ponto ou vírgula seguidos de exatamente 3 dígitos são milhar.
+ *
+ * O campo era type=number, e o navegador lia "24.900" como 24,9: o mesmo bug
+ * de escala que já tinha corrompido a base, agora entrando pela tela.
+ */
+var VALOR_MIN = 10, VALOR_MAX = 1000000;
+function lerValor(t) {
+  var s = String(t === undefined || t === null ? '' : t).replace(/R\$|\s/g, '');
+  if (!s) return NaN;
+  if (s.indexOf('.') >= 0 && s.indexOf(',') >= 0) {
+    s = s.lastIndexOf(',') > s.lastIndexOf('.') ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(s) || /^\d{1,3}(,\d{3})+$/.test(s)) {
+    s = s.replace(/[.,]/g, '');
+  } else {
+    s = s.replace(',', '.');
+  }
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+/** Mensagem de erro do valor, ou '' se estiver ok. */
+function problemaValor(t, obrigatorio) {
+  if (String(t || '').trim() === '') return obrigatorio ? 'Falta o valor.' : '';
+  var n = lerValor(t);
+  if (isNaN(n)) return 'Valor ilegível. Digite só números: 24900 ou 24.900,00.';
+  if (n < VALOR_MIN || n > VALOR_MAX) return 'O valor precisa estar entre R$ 10 e R$ 1.000.000.';
+  return '';
+}
+
 function mostrarValor(idCampo, idDica) {
-  var v = el(idCampo).value, alvo = el(idDica);
+  var v = lerValor(el(idCampo).value), alvo = el(idDica);
   alvo.textContent = '';
-  if (v === '' || isNaN(Number(v))) return;
+  if (isNaN(v)) return;
   alvo.appendChild(document.createTextNode('R$ ' + brl2(v)));
   if (idCampo !== 'valorSaida') return;
   var o = el('item').selectedOptions[0];
   var combinado = o && o.value ? Number(o.dataset.valor) : NaN;
-  var dif = Number(v) - combinado;
+  var dif = v - combinado;
   if (!isNaN(dif) && dif !== 0) {
     var s = document.createElement('span');
     s.className = dif < 0 ? 'menos' : 'mais';
@@ -1054,8 +1086,11 @@ function aplicarOpcoes(d) {
   });
   if (itemEscolhido) item.value = itemEscolhido;
 
-  el('dataEntrada').value = d.hoje;
-  el('dataSaida').value = d.hoje;
+  // Só preenche a data se estiver vazia: a atualização automática apagava a
+  // data que o Cairo tinha escolhido no meio do preenchimento.
+  if (!el('dataEntrada').value) el('dataEntrada').value = d.hoje;
+  if (!el('dataSaida').value) el('dataSaida').value = d.hoje;
+  ['dataEntrada', 'dataSaida'].forEach(function (id) { el(id).max = d.hoje; el(id).min = '2020-01-01'; });
   mostrarConta();
   atualizarRotulos();
   if (ABA === 'estoque') desenharEstoque();
@@ -1119,7 +1154,9 @@ function bolha(quem, texto, classe) {
 
 function enviarPergunta() {
   var txt = el('pergunta').value.trim();
-  if (!txt) return;
+  // o botão já ficava desativado, mas o Enter disparava uma segunda pergunta
+  // em paralelo e as duas respostas brigavam pelo mesmo histórico
+  if (!txt || el('botaoChat').disabled) return;
 
   var vazio = el('conversa').querySelector('.vazio');
   if (vazio) vazio.remove();
@@ -1316,7 +1353,10 @@ function abrirBusca(idSelect) {
       }
       // Cadastrar fica DEPOIS dos resultados: no topo, convidava a criar de
       // novo quem já estava logo abaixo — a origem dos donos duplicados.
-      if (cfg.criar) {
+      var exato = termo && opcoesSel.some(function (o) {
+        return sem(o.textContent).replace(/\s+/g, ' ').trim() === sem(termo).replace(/\s+/g, ' ').trim();
+      });
+      if (cfg.criar && !exato) {
         var novo = criar('button', 'opcao criar');
         novo.type = 'button';
         novo.appendChild(criar('span', 'ini', '+'));
@@ -1514,6 +1554,7 @@ function seloDias(r) {
   var s;
   if (r.status === 'Em estoque') {
     if (r.dias === null) return criar('span', 'selo-dias', 'sem data');
+    if (r.dias < 0) return criar('span', 'selo-dias atencao', 'entrada no futuro?');
     var critico = r.dias >= LIMITE_PARADO;
     s = criar('span', 'selo-dias' + (critico ? ' critico' : r.dias >= 60 ? ' atencao' : ''));
     // parado leva ícone e texto, não só a cor
@@ -1912,6 +1953,7 @@ function abrirCorrecao(id) {
         return function (w) {
           var i = criar(tipo === 'textarea' ? 'textarea' : 'input');
           if (tipo !== 'textarea') i.type = tipo;
+          if (tipo === 'date') { i.max = OPCOES.hoje; i.min = '2020-01-01'; }
           i.id = 'cor_' + chave; i.value = dep[chave];
           if (extra) extra(i);
           i.oninput = function () { dep[chave] = i.value; marcar(); };
@@ -1953,7 +1995,7 @@ function abrirCorrecao(id) {
       var dupla = criar('div', 'dupla');
       campo('valor', 'Valor', function (w) {
         var m = criar('div', 'moeda'); m.appendChild(criar('span', '', 'R$'));
-        entrada('valor', 'number', function (i) { i.inputMode = 'decimal'; i.step = '0.01'; i.min = '0'; })(m);
+        entrada('valor', 'text', function (i) { i.inputMode = 'decimal'; i.autocomplete = 'off'; })(m);
         w.appendChild(m);
       });
       campo('entrada', 'Data de entrada', entrada('entrada', 'date'));
@@ -1987,7 +2029,7 @@ function abrirCorrecao(id) {
       function marcar() {
         var n = 0;
         ['status', 'item', 'donoId', 'valor', 'entrada', 'saida', 'loja', 'obs'].forEach(function (k) {
-          var mudou = String(dep[k]) !== String(antes[k]);
+          var mudou = k === 'valor' ? lerValor(dep[k]) !== Number(antes[k]) : String(dep[k]) !== String(antes[k]);
           if (mudou) n++;
           var w = f.querySelector('[data-campo="' + k + '"]');
           if (w) w.classList.toggle('mudou', mudou);
@@ -2006,6 +2048,13 @@ function salvarCorrecao(antes, dep) {
   b.disabled = true; b.innerHTML = '<span class="giro"></span>Salvando…';
   var depois = {};
   ['status', 'item', 'donoId', 'valor', 'entrada', 'saida', 'loja', 'obs'].forEach(function (k) { depois[k] = dep[k]; });
+  var pv = problemaValor(dep.valor, true);
+  if (pv) {
+    b.disabled = false; b.textContent = 'Salvar correção';
+    el('resumoMudancas').textContent = pv; el('resumoMudancas').style.color = 'var(--vermelho)';
+    return;
+  }
+  depois.valor = String(lerValor(dep.valor));
   google.script.run
     .withSuccessHandler(function (msg) {
       // corrigido de dentro da revisão dos parados: volta para ela, no próximo item
@@ -2057,6 +2106,9 @@ function preencherValor() {
   } else {
     el('dicaItem').textContent = ''; el('valorSaida').value = '';
   }
+  // a venda não pode ser anterior à entrada do item
+  var r = o && o.value ? registro(o.value) : null;
+  el('dataSaida').min = r && r.entrada ? r.entrada : '2020-01-01';
   mostrarValor('valorSaida', 'valorSaidaFmt');
   atualizarRotulos();
 }
@@ -2069,6 +2121,9 @@ function erro(id, txt) {
 function ocupado(sim) {
   var b = el('botaoAcao');
   b.disabled = sim;
+  // Sem isto, trocar de aba durante a gravação mostrava "Venda registrada"
+  // por cima do Estoque, com o título da aba errada.
+  [].forEach.call(document.querySelectorAll('.abas button'), function (t) { t.disabled = sim; });
   if (sim) b.innerHTML = '<span class="giro"></span>Gravando…';
   else b.textContent = ABA === 'entrada' ? 'Registrar entrada' : 'Registrar';
 }
@@ -2123,6 +2178,14 @@ function enviarEntrada(ev) {
   if (dono === 'NOVO' && !el('donoNovo').value.trim())
     return erro('avisoEntrada', 'Digite o nome do novo proprietário.');
 
+  var pv = problemaValor(el('valor').value, true);
+  if (pv) return erro('avisoEntrada', pv);
+  // mesmo nome de quem já existe: escolher na lista, não duplicar
+  if (dono === 'NOVO') {
+    var igual = OPCOES.donos.filter(function (p) { return sem(p.nome).replace(/\s+/g, ' ').trim() === sem(el('donoNovo').value).replace(/\s+/g, ' ').trim(); })[0];
+    if (igual) return erro('avisoEntrada', 'Já existe o proprietário "' + igual.nome + '". Escolha na lista em vez de cadastrar de novo.');
+  }
+
   var bike = TIPO === 'Bicicleta';
   ocupado(true);
   google.script.run
@@ -2147,7 +2210,7 @@ function enviarEntrada(ev) {
       donoNovo: dono === 'NOVO' ? el('donoNovo').value.trim() : '',
       donoContato: el('donoContato').value.trim(),
       donoCidade: el('donoCidade').value.trim(),
-      valor: el('valor').value,
+      valor: String(lerValor(el('valor').value)),
       dataEntrada: el('dataEntrada').value,
       observacoes: el('obsEntrada').value.trim()
     });
@@ -2156,6 +2219,8 @@ function enviarEntrada(ev) {
 function enviarSaida(ev) {
   ev.preventDefault();
   if (!el('item').value) return erro('avisoSaida', 'Escolha o item.');
+  var pv = problemaValor(el('valorSaida').value, false);
+  if (pv) return erro('avisoSaida', pv);
 
   // guarda como o item estava, para o "Desfazer" restaurar valor e observação
   var antes = registro(el('item').value), statusSaida = STATUS;
@@ -2172,7 +2237,7 @@ function enviarSaida(ev) {
       idCons: el('item').value,
       status: STATUS,
       canal: el('canal').value,
-      valor: el('valorSaida').value,
+      valor: el('valorSaida').value.trim() ? String(lerValor(el('valorSaida').value)) : '',
       dataSaida: el('dataSaida').value,
       observacoes: el('obsSaida').value.trim()
     });
