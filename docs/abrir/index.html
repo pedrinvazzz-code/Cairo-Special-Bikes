@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cairo</title>
+<!--
+  Página de entrada do app de campo.
+
+  O app roda no Apps Script, dentro de uma página do Google
+  (script.google.com). Ao "Adicionar à Tela de Início", o celular lê o ícone
+  dessa página externa, que não é nossa, e cai na letra genérica. Esta página
+  existe só para ter o ícone e o nome certos: o atalho aponta para cá, e daqui
+  seguimos direto para o app.
+
+  Sem "apple-mobile-web-app-capable" de propósito: o atalho abre no Safari
+  normal, com os mesmos cookies do login Google que o app já usa hoje.
+
+  /abrir/            -> vai direto para o app
+  /abrir/?instalar   -> mostra como adicionar à Tela de Início
+-->
+<meta name="theme-color" content="#141416">
+<meta name="apple-mobile-web-app-title" content="Cairo">
+<meta name="application-name" content="Cairo">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom)) 20px;
+    background: radial-gradient(120% 60% at 50% 110%, rgba(255,140,95,.18), transparent 60%), #141416;
+    color: #F2F2F4; font: 16px/1.5 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; text-align: center;
+  }
+  main { width: 100%; max-width: 380px; }
+  .icone { width: 96px; height: 96px; border-radius: 22px; margin: 0 auto 18px auto; display: block; box-shadow: 0 12px 30px rgba(0,0,0,.45); }
+  h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+  p { margin: 0; color: #A3A3AA; font-size: 15px; }
+  .botao {
+    display: flex; align-items: center; justify-content: center; height: 52px; margin-top: 24px; border-radius: 999px;
+    background: #F2F2F4; color: #141416; font-weight: 600; text-decoration: none;
+  }
+  .passos { margin: 26px 0 0 0; padding: 0; list-style: none; text-align: left; display: grid; gap: 10px; }
+  .passos li { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 16px; background: #1F1F23; font-size: 15px; }
+  .passos b { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: #D22630; color: #FFF; font-size: 13px;
+              display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .passos svg { vertical-align: -3px; }
+  .so-android, .instalar { display: none; }
+  .android .so-android { display: grid; } .android .so-iphone { display: none; }
+  .modo-instalar .instalar { display: block; } .modo-instalar .abrindo { display: none; }
+  .nota { margin-top: 18px; font-size: 13px; color: #7E7E86; }
+</style>
+</head>
+<body>
+<main>
+  <img class="icone" src="apple-touch-icon.png" alt="">
+
+  <div class="abrindo">
+    <h1>Cairo Special Bikes</h1>
+    <p>Abrindo o app…</p>
+    <a class="botao" id="ir" href="#">Abrir o app</a>
+  </div>
+
+  <div class="instalar">
+    <h1>Instale o app da Cairo</h1>
+    <p>Um atalho na tela inicial, com o ícone da loja.</p>
+    <ol class="passos so-iphone">
+      <li><b>1</b><span>Confira que está no <strong>Safari</strong>. No Chrome do iPhone o ícone não aparece.</span></li>
+      <li><b>2</b><span>Toque em compartilhar
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="ícone de compartilhar"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5v10h14V11h-1"/></svg>
+        na barra do Safari.</span></li>
+      <li><b>3</b><span>Escolha <strong>Adicionar à Tela de Início</strong>, deixe o nome "Cairo" e toque em <strong>Adicionar</strong>.</span></li>
+    </ol>
+    <ol class="passos so-android">
+      <li><b>1</b><span>No Chrome, toque no menu <strong>⋮</strong>, no canto de cima.</span></li>
+      <li><b>2</b><span>Escolha <strong>Adicionar à tela inicial</strong> e confirme.</span></li>
+    </ol>
+    <a class="botao" id="ir2" href="#">Abrir o app agora</a>
+    <p class="nota">Se já existe um atalho antigo com a letra C, apague antes.</p>
+  </div>
+</main>
+<script>
+  var APP = 'https://script.google.com/macros/s/AKfycbyRWj_8NLHCTaPP8Z-37Y0vmjJHr0ST59t_u2UgTCDqOjkHWpkXwzFneV_yggtS9B29/exec';
+  document.getElementById('ir').href = APP;
+  document.getElementById('ir2').href = APP;
+  if (/android/i.test(navigator.userAgent)) document.documentElement.classList.add('android');
+
+  if (/[?&#]instalar\b/.test(location.search + location.hash)) {
+    document.documentElement.classList.add('modo-instalar');
+    // o atalho guarda o endereço atual: limpa o "?instalar" para que o ícone
+    // na tela inicial abra direto o app, e não estas instruções
+    history.replaceState(null, '', location.pathname);
+  } else {
+    location.replace(APP);
+  }
+</script>
+</body>
+</html>
