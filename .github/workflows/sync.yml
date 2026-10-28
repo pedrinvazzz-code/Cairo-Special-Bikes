@@ -24,6 +24,9 @@ jobs:
       - name: Rodar testes dos parsers
         run: cd pipeline && python test_transform.py
 
+      - name: Rodar testes da carga
+        run: cd pipeline && python test_load.py
+
       - name: Executar pipeline
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
