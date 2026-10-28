@@ -65,12 +65,44 @@ def upsert(tabela, registros, chunk_size=100):
 
         if resp.status_code in (200, 201):
             total += len(chunk)
-        else:
-            print(f"  ✗ Erro em {tabela} (lote {i//chunk_size + 1}): {resp.status_code} — {resp.text[:200]}")
+            continue
+
+        lote = i // chunk_size + 1
+        print(f"  ✗ Erro em {tabela} (lote {lote}): {resp.status_code} — {motivo(resp)}")
+
+        # 400/409 é dado recusado pelo banco (campo obrigatório vazio, chave
+        # estrangeira...). Um registro só derruba o lote inteiro e, em cascata,
+        # o que aponta para ele nas outras tabelas — então reenvia um a um para
+        # só o registro com problema ficar de fora. Outros códigos (auth, fora
+        # do ar) falhariam igual em cada linha, não adianta repetir.
+        if resp.status_code not in (400, 409):
             erros += 1
+            continue
+
+        print(f"    reenviando o lote {lote} um registro por vez...")
+        for n, r in enumerate(chunk_normalizado, start=i + 1):
+            resp = requests.post(url, json=[r], headers=headers)
+            if resp.status_code in (200, 201):
+                total += 1
+            else:
+                quem = f"{chave}={r.get(chave)}" if chave else f"registro {n}"
+                print(f"    ✗ {tabela} {quem}: {resp.status_code} — {motivo(resp)}")
+                erros += 1
 
     print(f"  ✓ {tabela}: {total} registros enviados")
     return erros
+
+
+def motivo(resp):
+    """Mensagem de erro do Supabase com a parte útil primeiro (a 'message' diz a coluna)."""
+    try:
+        j = resp.json()
+        texto = str(j.get('message'))
+        if j.get('details'):
+            texto += f" ({j['details']})"
+    except (ValueError, AttributeError):
+        texto = resp.text
+    return texto[:300]
 
 
 def listar_ids(tabela, chave):
